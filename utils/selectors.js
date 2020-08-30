@@ -1,8 +1,11 @@
 module.exports = {
-    genresPage: '.shelfStat a',
-    genresMore: '.moreLink a',
-    genresPagination: 'a[href^="/shelf/show"]',
-    booksLinks: 'a[href^="/book/show"].bookTitle',
+    emailInput: '#user_email',
+    passwordInput: '#user_password',
+    signInForm: 'form',
+    genreLinks: '.shelfStat a',
+    genreMoreLinks: '.moreLink a',
+    genrePaginationLinks: 'a[href^="/shelf/show"]',
+    bookLinks: 'a[href^="/book/show"].bookTitle',
     bookPage: [
         {
             name: 'cover',
