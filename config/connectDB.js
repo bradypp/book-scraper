@@ -1,7 +1,10 @@
 const mongoose = require('mongoose');
 
 // DB Config
-const DB = process.env.MONGO_URI.replace('<password>', process.env.DB_PASSWORD);
+const DB = process.env.MONGO_URI.replace('<password>', process.env.DB_PASSWORD).replace(
+    '<dbname>',
+    process.env.DB_NAME,
+);
 
 // Connect to MongoDB
 const connectDB = async () => {

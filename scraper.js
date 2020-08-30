@@ -3,20 +3,14 @@ const puppeteer = require('puppeteer');
 const selectors = require('./utils/selectors');
 const scraperConfig = require('./config/scraper');
 
-(async () => {
-    const browser = await puppeteer.launch({ headless: true });
+const scraper = async () => {
+    const browser = await puppeteer.launch({ headless: false });
     const page = await browser.newPage();
 
     const goodreadsUrl = 'https://www.goodreads.com/user/sign_in';
     await page.goto(goodreadsUrl, scraperConfig.pageLoadOptions);
-    const emailInput = await page.$eval(
-        selectors.emailInput,
-        el => (el.value = 'bookrecommender@hotmail.co.uk'),
-    );
-    const passwordInput = await page.$eval(
-        selectors.passwordInput,
-        el => (el.value = '575857585758'),
-    );
+    await page.$eval(selectors.emailInput, el => (el.value = 'bookrecommender@hotmail.co.uk'));
+    await page.$eval(selectors.passwordInput, el => (el.value = '575857585758'));
     await page.evaluate(selectors => {
         document.querySelector(selectors.signInForm).submit();
     }, selectors);
@@ -116,7 +110,9 @@ const scraperConfig = require('./config/scraper');
     }
 
     await browser.close();
-})();
+};
+
+module.exports = scraper;
 // const puppeteer = require('puppeteer');
 // const models = require('./models');
 
