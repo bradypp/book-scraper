@@ -1,41 +1,28 @@
-/* eslint-disable no-console */
-/* eslint-disable no-process-exit */
+const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-
-const scraper = require('./scraper');
 
 dotenv.config({ path: './.env.local' });
 
-// Handle any uncaught exception
-process.on('uncaughtException', err => {
-    console.log('UNCAUGHT EXCEPTION! Shutting down...');
-    if (process.env.NODE_ENV === 'development') {
-        console.error(err);
-    } else {
-        console.error(err.name, err.message);
-    }
-    process.exit(1);
-});
+// DB Config
+const DB = process.env.MONGO_URI.replace('<password>', process.env.DB_PASSWORD).replace(
+  '<dbname>',
+  process.env.DB_NAME,
+);
 
-const app = require('./app');
-const connectDB = require('./config/connectDB');
+// Connect to MongoDB
+const connectDB = async () => {
+  try {
+    await mongoose.connect(DB, {
+      useNewUrlParser: true,
+      useCreateIndex: true,
+      useFindAndModify: false,
+      useUnifiedTopology: true,
+    });
+    // eslint-disable-next-line no-console
+    console.log('MongoDB connection successful!');
+  } catch (err) {
+    console.error(err);
+  }
+};
 
-connectDB();
-
-const port = process.env.PORT || 5000;
-
-// TODO: remove
-scraper();
-
-const server = app.listen(port, () => console.log(`Server running on port ${port}...`));
-
-// Final error handling safety net
-process.on('unhandledRejection', err => {
-    console.log('UNHANDLED REJECTION! Shutting down...');
-    if (process.env.NODE_ENV === 'development') {
-        console.error(err);
-    } else {
-        console.error(err.name, err.message);
-    }
-    server.close(() => process.exit(1));
-});
+module.exports = connectDB;
