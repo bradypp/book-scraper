@@ -1,25 +1,51 @@
 const { Schema, model } = require('mongoose');
 
 const linkSchema = new Schema({
-  links_source: {
+  link: {
     type: String,
     required: true,
-    unique: true,
+    unique: true
   },
-  links: {
-    type: [String],
-    required: true,
+  category: {
+    type: String,
+    trim: true,
+    enum: ['book', 'author', 'genre', 'list', 'series'],
   },
-  updated_at: {
+  linksScrapedAt: {
     type: Date,
     default: Date.now(),
   },
-  created_at: {
+  dataScrapedAt: {
+    type: Date,
+    default: Date.now(),
+  },
+  createdAt: {
     type: Date,
     default: Date.now(),
   },
 });
 
-const linkModel = model('Link', linkSchema, 'links');
+linkSchema.pre('save', function (next) {
+  if (!this.category && this.isNew) {
+    if (this.link.includes('book/show')) {
+      this.category = 'book';
+    }
+    if (this.link.includes('author/show')) {
+      this.category = 'author';
+    }
+    if (this.link.includes('genres')) {
+      this.category = 'genre';
+    }
+    if (this.link.includes('list/show')) {
+      this.category = 'list';
+    }
+    if (this.link.includes('series')) {
+      this.category = 'series';
+    }
+  }
+  next();
+});
 
-module.exports = linkModel;
+const Link = model('Link', linkSchema, 'links');
+
+module.exports = Link;
