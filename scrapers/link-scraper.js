@@ -6,6 +6,26 @@ const Link = require('../models/linkModel');
 
 require('../server')();
 
+const shuffle = array => {
+  var currentIndex = array.length,
+    temporaryValue,
+    randomIndex;
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    // And swap it with the current element.
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+
+  return array;
+};
+
 const linkScraper = async () => {
   try {
     const browser = await puppeteer.launch({ headless: true });
@@ -21,77 +41,89 @@ const linkScraper = async () => {
 
     // Wait for sign in to finish by waiting for personal nav
     await page.waitForSelector('.personalNav', { visible: false, timeout: 0 });
-    
+
+    let limit = 4000;
+
     while (true) {
       // Carry on from where you left off
-      const dbLinks = await Link.find().sort('-updated_at').select('links').limit(500);
-      const scrapedLinks = [... new Set(dbLinks.map(doc => doc.links).flat())];
-console.log(scrapedLinks);
+      const dbLinks = await Link.find()
+        .sort('-linksScrapedAt')
+        .limit(limit < 50000 ? limit : 50000);
+      let startingLinks = dbLinks.map(el => el.link);
+
       // Get links from starting page if none in db
-      if (scrapedLinks.length === 0) {
-        scrapedLinks.push(
+      if (startingLinks.length === 0) {
+        startingLinks.push(
           ...(await page.$$eval('a', links =>
             links
-              .map(link =>
-                link.href,
-              )
-              .filter(href =>
+              .filter(el =>
                 new RegExp(
-                  /^(https:\/\/www.goodreads.com\/|\/)(book\/show|books|list|genre|genres|recommendations|tag|series|author\/show|characters|choiceawards|new_releases|workshelves)[\/?#]/,
-                ).test(href),
-              ),
+                  /^(https:\/\/www.goodreads.com\/|\/)(book\/show|books|list|genre|genres|recommendations|tag|series|author\/show|choiceawards|new_releases|workshelves)[\/?]/,
+                ).test(el.href),
+              )
+              .map(el => {
+                let url = el.href;
+                if (url.includes('#')) {
+                  url = url.split('#')[0];
+                }
+                if (!url.startsWith('https://www.goodreads.com')) {
+                  url = 'https://www.goodreads.com' + url;
+                }
+                return url;
+              }),
           )),
         );
       }
 
-      // TODO Make it so that each link has it's own doc, use regex to detect a category such as book, author, series, genre etc.
-      // TODO Have an updated_at property to use when that page is scraped for data e.g. book data & a scraped_at property for when last scraped for links
-      const doneLinks = [...scrapedLinks];
-      let linkArr = [...scrapedLinks];
-      let depth = 1;
-      const maxDepth = 1000;
+      startingLinks = shuffle(startingLinks);
 
-      while (depth <= maxDepth) {
-        const nextLinkArr = [];
-        for (let i = 0; i < linkArr.length; i++) {
-          try {
-            const url = linkArr[i];
-            await page.goto(url, scraperConfig.pageLoadOptions);
-            const newLinks = await page.$$eval('a', links =>
-            links
-            .map(link => link.href)
-            .filter(href =>
-              new RegExp(
-                /^(https:\/\/www.goodreads.com\/|\/)(book\/show|books|list|genre|genres|recommendations|tag|series|author\/show|characters|choiceawards|new_releases|workshelves)[\/?#]/,
-                ).test(href),
-                ),
-                );
-                const filteredLinks = [
-                  ...new Set(newLinks.filter(link => doneLinks.indexOf(link) === -1)),
-                ];
-            nextLinkArr.push(...filteredLinks);
+      // Reset limit
+      limit = 0;
 
-            if (filteredLinks.length !== 0) {
-              try {
-                const linkDoc = await Link.findOne({ links_source: url });
-                if (!linkDoc) {
-                  await Link.create({
-                    links_source: url,
-                    links: filteredLinks,
-                  });
-                } else {
-                  linkDoc.links = filteredLinks;
-                  linkDoc.updated_at = Date.now();
-                  linkDoc.save();
-                }
-              } catch (error) {}
+      for (let i = 0; i < startingLinks.length; i++) {
+        try {
+          await page.goto(startingLinks[i], scraperConfig.pageLoadOptions);
+          const newLinks = [
+            ...new Set(
+              await page.$$eval('a', links =>
+                links
+                  .filter(el =>
+                    new RegExp(
+                      /^(https:\/\/www.goodreads.com\/|\/)(book\/show|books|list|genre|genres|recommendations|tag|series|author\/show|choiceawards|new_releases|workshelves)[\/?]/,
+                    ).test(el.href),
+                  )
+                  .map(el => {
+                    let url = el.href;
+                    if (url.includes('#')) {
+                      url = url.split('#')[0];
+                    }
+                    if (!url.startsWith('https://www.goodreads.com')) {
+                      url = 'https://www.goodreads.com' + url;
+                    }
+                    return url;
+                  }),
+              ),
+            ),
+          ];
+          for (let j = 0; j < newLinks.length; j++) {
+            try {
+              const linkDoc = await Link.findOne({ link: newLinks[j] });
+              if (!linkDoc) {
+                await Link.create({
+                  link: newLinks[j],
+                });
+              } else {
+                linkDoc.linksScrapedAt = Date.now();
+                linkDoc.save();
+              }
+            } catch (error) {
+              console.error(error);
             }
-            getPageLinks(filteredLinks, depth++);
-          } catch (error) {}
+          }
+          limit += newLinks.length;
+        } catch (error) {
+          console.error(error);
         }
-        doneLinks.push(...nextLinkArr);
-        linkArr = [...nextLinkArr];
-        depth++;
       }
     }
 

@@ -53,7 +53,7 @@ exports.getPageLinks = async (linksArr = [], depth = 1, maxDepth) => {
             });
           } else {
             linkDoc.links = filteredLinks;
-            linkDoc.updated_at = Date.now();
+            linkDoc.updatedAt = Date.now();
             linkDoc.save();
           }
         }

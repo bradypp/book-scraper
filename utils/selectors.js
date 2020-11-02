@@ -7,18 +7,15 @@ module.exports = {
     genreMoreLinks: '.moreLink a',
     genrePaginationLinks: 'a[href^="/shelf/show"]',
     bookLinks: 'a[href^="/book/show"].bookTitle',
+    tags: '.mainContent .leftContainer a',
     bookPage: [
         {
-            name: 'cover',
+            name: 'coverImage',
             selector: '#coverImage',
         },
         {
-            name: 'title',
-            selector: '#bookTitle',
-        },
-        {
             name: 'series',
-            selector: '#bookSeries',
+            selector: '#bookSeries a',
         },
         {
             name: 'authors',
@@ -42,6 +39,43 @@ module.exports = {
             name: 'relatedBooks',
             isIteratable: true,
             selector: '[id^="relatedWorks"] li a',
+        },
+        {
+            name: 'goodreadsId',
+            selector: '[data-book-id]',
+        },
+        {
+            name: 'bookEdition',
+            selector: '[itemprop="bookEdition"]',
+        },
+        {
+            name: 'bookFormat',
+            selector: '[itemprop="bookFormat"]',
+        },
+        {
+            name: 'numberOfPages',
+            selector: '[itemprop="numberOfPages"]',
+        },
+        {
+            name: 'reviewCount',
+            selector: 'meta[itemprop="reviewCount"]',
+        },
+        {
+            name: 'details',
+            selector: '#details',
+        },
+        {
+            name: 'isbn13',
+            selector: 'meta[property="books:isbn"]',
+        },
+        {
+            name: 'genres',
+            isIteratable: true,
+            selector: '.rightContainer .left .bookPageGenreLink',
+        },
+        {
+            name: 'tagsLink',
+            selector: '.rightContainer .elementList+.seeMoreLink',
         },
     ],
 };
