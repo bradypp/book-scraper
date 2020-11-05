@@ -27,7 +27,7 @@ const linkScraper = async () => {
     while (true) {
       try {
         // Carry on from where you left off
-        const dbLinks = await Link.find().sort('-linksScrapedAt').limit(50000);
+        const dbLinks = await Link.find().sort('linksScrapedAt');
         let startingLinks = dbLinks.map(el => el.link);
 
         const newLinks = [];
@@ -39,7 +39,7 @@ const linkScraper = async () => {
         }
 
         // startingLinks = helpers.shuffleArray(startingLinks);
-        
+
         for (let i = 0; i < startingLinks.length; i++) {
           try {
             await page.goto(startingLinks[i], scraperConfig.pageLoadOptions);

@@ -1,6 +1,6 @@
 const moment = require('moment');
 
-const dateApi = moment('May 2002', ['MMMM Do YYYY', 'MMMM YYYY', 'YYYY']).utc().format();
-const dateClient = moment(dateApi).format('MMMM YYYY')
+const dateApi = moment('May 4th 2002', 'MMMM Do YYYY').utc().format();
+const dateClient = moment(dateApi).toDate()
 
-console.log(dateApi);
+console.log(dateClient === new Date(dateClient));
