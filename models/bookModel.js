@@ -36,7 +36,7 @@ const bookSchema = new Schema(
       trim: true,
     },
     seriesNumber: {
-      type: Number,
+      type: String,
       trim: true,
     },
     booksInSeries: [
@@ -50,7 +50,7 @@ const bookSchema = new Schema(
           trim: true,
         },
         seriesNumber: {
-          type: Number,
+          type: String,
           trim: true,
         },
       },
@@ -91,8 +91,8 @@ const bookSchema = new Schema(
       type: Number,
       trim: true,
     },
-    isbn13: {
-      type: Number,
+    isbn: {
+      type: String,
       trim: true,
     },
     genres: {
@@ -131,23 +131,6 @@ bookSchema.index({ genres: 1 });
 bookSchema.index({ authors: 1 });
 bookSchema.index({ title: 1 });
 bookSchema.index({ goodreadsUrls: 1 });
-
-bookSchema.pre(/^find/, function (next) {
-  if (!this.seriesNumber && this.seriesRaw) {
-    const match = this.seriesRaw.match(/([#]\d)/g);
-    if (match && match.length === 1) {
-      this.seriesNumber = match[0];
-    }
-  }
-  if (!this.series && this.seriesRaw) {
-    this.series = this.seriesRaw.slice(1, -1);
-  }
-  next();
-});
-
-bookSchema.virtual('author').get(function () {
-  return this.authors.length === 1 ? this.authors[0] : null;
-});
 
 const Book = model('Book', bookSchema, 'books');
 

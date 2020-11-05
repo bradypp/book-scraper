@@ -65,7 +65,7 @@ module.exports = {
             selector: '#details',
         },
         {
-            name: 'isbn13',
+            name: 'isbn',
             selector: 'meta[property="books:isbn"]',
         },
         {

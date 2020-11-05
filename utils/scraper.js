@@ -26,7 +26,7 @@ exports.getElementFromXPath = async (page, xpath) => {
 };
 
 exports.getLinks = async (page, selector) =>
-  page.$$eval(selector, links => links.map(link => link.href));
+  page.$$eval(selector, links => links.map(link => link.href.toLowerCase()));
 
 exports.getPageLinks = async (linksArr = [], depth = 1, maxDepth) => {
   if (linksArr.length !== 0 && maxDepth && depth <= maxDepth) {
