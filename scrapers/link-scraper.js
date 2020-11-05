@@ -26,11 +26,13 @@ const linkScraper = async () => {
 
     while (true) {
       try {
-        // Carry on from where you left off
-        const dbLinks = await Link.find().sort('-linksScrapedAt').limit(50000);
+        // Scrape the newest links saved for more
+        const dbLinks = await Link.find().sort('-createdAt').limit(30000);
         let startingLinks = dbLinks.map(el => el.link);
 
+        let newCount = 0;
         const newLinks = [];
+        
         // Get links from starting page if none in db
         if (startingLinks.length === 0) {
           await page.goto('https://www.goodreads.com/book', scraperConfig.pageLoadOptions);
@@ -38,15 +40,33 @@ const linkScraper = async () => {
           newLinks.push(...startingLinks);
         }
 
-        // startingLinks = helpers.shuffleArray(startingLinks);
-        
+        startingLinks = helpers.shuffleArray(startingLinks);
+
         for (let i = 0; i < startingLinks.length; i++) {
           try {
             await page.goto(startingLinks[i], scraperConfig.pageLoadOptions);
 
             if (startingLinks[i].includes('book/show')) {
+              // Get lists related to book
+              const listElements = await page.evaluate(() => {
+                const divElements = document.querySelectorAll('.leftContainer > div > div');
+                return divElements && divElements.length !== 0
+                  ? Array.from(divElements).reduce((acc, el) => {
+                      if (el.innerText.toLowerCase().includes('lists with this book')) {
+                        return [...acc, ...el.getElementsByTagName('a')];
+                      }
+                      return acc;
+                    }, [])
+                  : [];
+              });
+
               newLinks.push(
-                ...[...new Set(await page.$$eval('.rightContainer a', helpers.scrapeHandler))],
+                ...[
+                  ...new Set([
+                    ...(await page.$$eval('.rightContainer a', helpers.scrapeHandler)),
+                    ...helpers.scrapeHandler(listElements),
+                  ]),
+                ],
               );
             } else {
               newLinks.push(...[...new Set(await page.$$eval('a', helpers.scrapeHandler))]);
@@ -59,6 +79,7 @@ const linkScraper = async () => {
                   await Link.create({
                     link: newLinks[j],
                   });
+                  newCount++;
                 } else {
                   linkDoc.linksScrapedAt = Date.now();
                   linkDoc.save();
@@ -71,6 +92,8 @@ const linkScraper = async () => {
             console.error(error);
           }
         }
+        console.log(`${newLinks.length} Total Links Scraped`);
+        console.log(`${newCount} New Links Scraped`);
       } catch (error) {
         console.log(error);
       }

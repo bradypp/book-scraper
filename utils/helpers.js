@@ -19,13 +19,16 @@ exports.omitKeyValuePairs = (obj, fieldsToOmit) => {
   );
 };
 
-exports.scrapeHandler = links =>
-  links
-    .filter(el =>
-      new RegExp(
-        /^(|list\/show_tag|shelf\/show|list\/tag|new_releases|most_read)[\/?#]/,
-      ).test(el.href.toLowerCase()),
-    )
+exports.scrapeHandler = links => {
+  return links
+    .filter(el => {
+      if (!el ||!el.href) {
+        return false;
+      }
+      return new RegExp(
+        /^(https:\/\/www.goodreads.com\/|\/)(book\/show|book\/shelves|book\/similar|books|list\/show|list\/book|genre|genres|recommendations|series|author\/show|choiceawards|list\/show_tag|shelf\/show|award\/show|list\/tag|new_releases|most_read)[\/?#]/,
+      ).test(el.href.toLowerCase());
+    })
     .map(el => {
       let url = el.href.toLowerCase();
       url = url.split('#')[0];
@@ -37,6 +40,7 @@ exports.scrapeHandler = links =>
       }
       return url;
     });
+};
 
 exports.shuffleArray = array => {
   var currentIndex = array.length,

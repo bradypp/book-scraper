@@ -31,7 +31,9 @@ const linkScraper = async () => {
 
         // Get links to each genre page
         genresLinks.push(
-          ...(await page.$$eval(selectors.genreLinks, links => links.map(link => link.href.toLowerCase()))),
+          ...(await page.$$eval(selectors.genreLinks, links =>
+            links.map(link => link.href.toLowerCase()),
+          )),
         );
       } catch (error) {
         console.error(error);
@@ -130,8 +132,26 @@ const linkScraper = async () => {
 
                 const newLinks = [];
                 if (linkArr[i].includes('book/show')) {
+                  // Get lists related to book
+                  const listElements = await page.evaluate(() => {
+                    const divElements = document.querySelectorAll('.leftContainer > div > div');
+                    return divElements && divElements.length !== 0
+                      ? Array.from(divElements).reduce((acc, el) => {
+                          if (el.innerText.toLowerCase().includes('lists with this book')) {
+                            return [...acc, ...el.getElementsByTagName('a')];
+                          }
+                          return acc;
+                        }, [])
+                      : [];
+                  });
+
                   newLinks.push(
-                    ...[...new Set(await page.$$eval('.rightContainer a', helpers.scrapeHandler))],
+                    ...[
+                      ...new Set([
+                        ...(await page.$$eval('.rightContainer a', helpers.scrapeHandler)),
+                        ...helpers.scrapeHandler(listElements),
+                      ]),
+                    ],
                   );
                 } else {
                   newLinks.push(...[...new Set(await page.$$eval('a', helpers.scrapeHandler))]);
