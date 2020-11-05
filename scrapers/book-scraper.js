@@ -29,7 +29,7 @@ const bookScraper = async () => {
 
     while (true) {
       try {
-        const limit = Math.floor(Math.random() * 2000 + 6000);
+        const limit = Math.floor((Math.random() * 5000)  + 1000);
         const dbLinks = await Link.find({ link: { $regex: 'book/show' } })
           .sort('dataScrapedAt')
           .select('link')
@@ -240,39 +240,40 @@ const bookScraper = async () => {
                     let seriesNumber;
                     const { title } = args;
                     const bookElements = document.querySelectorAll('.listWithDividers__item');
-                    const booksInSeries = bookElements
-                      ? Array.from(bookElements).map(el => {
-                          const h3Tags = el.getElementsByTagName('h3');
-                          const bookNumberText =
-                            h3Tags && h3Tags.length !== 0
-                              ? h3Tags[0].innerText.trim().toLowerCase()
-                              : null;
-                          const bookNumberMatch = bookNumberText.match(/book (.+)/);
-                          const bookNumber =
-                            bookNumberMatch && bookNumberMatch.length >= 2
-                              ? bookNumberMatch[1]
-                              : null;
+                    const booksInSeries =
+                      bookElements && bookElements.length !== 0
+                        ? Array.from(bookElements).map(el => {
+                            const h3Tags = el.getElementsByTagName('h3');
+                            const bookNumberText =
+                              h3Tags && h3Tags.length !== 0
+                                ? h3Tags[0].innerText.trim().toLowerCase()
+                                : null;
+                            const bookNumberMatch = bookNumberText.match(/book (.+)/);
+                            const bookNumber =
+                              bookNumberMatch && bookNumberMatch.length >= 2
+                                ? bookNumberMatch[1]
+                                : null;
 
-                          const aTags = el.getElementsByTagName('a');
-                          const bookLink =
-                            aTags && aTags.length !== 0 && aTags[0].href
-                              ? aTags[0].href.toLowerCase()
-                              : null;
-                          const bookTitle =
-                            aTags && aTags.length !== 0 && aTags[1].innerText
-                              ? aTags[1].innerText.trim()
-                              : null;
+                            const aTags = el.getElementsByTagName('a');
+                            const bookLink =
+                              aTags && aTags.length !== 0 && aTags[0].href
+                                ? aTags[0].href.toLowerCase()
+                                : null;
+                            const bookTitle =
+                              aTags && aTags.length !== 0 && aTags[1].innerText
+                                ? aTags[1].innerText.trim()
+                                : null;
 
-                          if (bookTitle.trim().toLowerCase() === title.toLowerCase()) {
-                            seriesNumber = bookNumber;
-                          }
-                          return {
-                            goodreadsUrl: bookLink,
-                            seriesNumber: bookNumber,
-                            title: bookTitle,
-                          };
-                        })
-                      : [];
+                            if (bookTitle.trim().toLowerCase() === title.toLowerCase()) {
+                              seriesNumber = bookNumber;
+                            }
+                            return {
+                              goodreadsUrl: bookLink,
+                              seriesNumber: bookNumber,
+                              title: bookTitle,
+                            };
+                          })
+                        : [];
                     const seriesTitleEl = document.querySelector('h1');
                     const series =
                       seriesTitleEl &&
