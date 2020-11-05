@@ -29,12 +29,16 @@ const bookScraper = async () => {
 
     while (true) {
       try {
-        const limit = Math.floor((Math.random() * 5000)  + 1000);
+        const limit = Math.floor(Math.random() * 5000 + 1000);
         const dbLinks = await Link.find({ link: { $regex: 'book/show' } })
           .sort('dataScrapedAt')
           .select('link')
           .limit(limit);
         const bookLinks = helpers.shuffleArray([...new Set(dbLinks.map(el => el.link))]);
+
+        let scrapedCount = 0;
+        let newCount = 0;
+        let updatedCount = 0;
 
         for (let i = 0; i < bookLinks.length; i++) {
           try {
@@ -51,19 +55,6 @@ const bookScraper = async () => {
                 ? `${location.protocol}//${location.host}${location.pathname}`.toLowerCase()
                 : bookLinks[i] || null;
             });
-
-            // Only scrape unique books (comment out to scrape all books)
-            // if (bookDoc) {
-            //   bookDoc.goodreadsUrls = [...new Set([...bookDoc.goodreadsUrls, bookUrl])];
-            //   bookDoc.updatedAt = Date.now();
-            //   bookDoc.save();
-            //   try {
-            //     await Link.updateOne({ link: bookLinks[i] }, { dataScrapedAt: Date.now() });
-            //   } catch (error) {
-            //     console.error(error);
-            //   }
-            //   continue;
-            // }
 
             // Get book data
             const scrapedData = await page.evaluate(
@@ -384,7 +375,7 @@ const bookScraper = async () => {
                   booksInSeries,
                   updatedAt: Date.now(),
                 });
-                console.log(doc);
+                newCount++;
               } catch (error) {
                 console.error(error);
               }
@@ -451,16 +442,20 @@ const bookScraper = async () => {
                 }
                 bookDoc.updatedAt = Date.now();
                 bookDoc.save();
-                console.log(bookDoc);
+                updatedCount++;
               } catch (error) {
                 console.error(error);
               }
             }
             await Link.updateOne({ link: bookLinks[i] }, { dataScrapedAt: Date.now() });
+            scrapedCount++;
           } catch (error) {
             console.error(error);
           }
         }
+        console.log(`${newCount} New Books Saved`);
+        console.log(`${updatedCount} Existing Books Updated`);
+        console.log(`${scrapedCount} Book Links Scraped`);
       } catch (error) {
         console.error(error);
       }

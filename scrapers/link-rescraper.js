@@ -30,7 +30,9 @@ const linkScraper = async () => {
         const dbLinks = await Link.find().sort('linksScrapedAt').limit(30000);
         let startingLinks = dbLinks.map(el => el.link);
 
+        let newCount = 0;
         const newLinks = [];
+        
         // Get links from starting page if none in db
         if (startingLinks.length === 0) {
           await page.goto('https://www.goodreads.com/book', scraperConfig.pageLoadOptions);
@@ -39,7 +41,7 @@ const linkScraper = async () => {
         }
 
         startingLinks = helpers.shuffleArray(startingLinks);
-        
+
         for (let i = 0; i < startingLinks.length; i++) {
           try {
             await page.goto(startingLinks[i], scraperConfig.pageLoadOptions);
@@ -77,11 +79,11 @@ const linkScraper = async () => {
                   await Link.create({
                     link: newLinks[j],
                   });
+                  newCount++
                 } else {
                   linkDoc.linksScrapedAt = Date.now();
                   linkDoc.save();
                 }
-                console.log('Link Scraped');
               } catch (error) {
                 console.error(error);
               }
@@ -90,6 +92,8 @@ const linkScraper = async () => {
             console.error(error);
           }
         }
+        console.log(`${newLinks.length} Total Links Scraped`);
+        console.log(`${newCount} New Links Scraped`);
       } catch (error) {
         console.log(error);
       }
