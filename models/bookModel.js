@@ -7,13 +7,7 @@ const options = {
 
 const bookSchema = new Schema(
   {
-    goodreadsUrls: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
-    latestGoodreadsUrl: {
+    goodreadsUrl: {
       type: String,
       trim: true,
       unique: true,

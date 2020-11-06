@@ -10,6 +10,10 @@ const linkSchema = new Schema({
     type: Date,
     default: Date.now(),
   },
+  bookId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Book',
+  },
   dataScrapedAt: {
     type: Date,
     default: Date.now(),

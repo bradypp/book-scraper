@@ -190,8 +190,6 @@ const linkScraper = async () => {
         console.log(error);
       }
     }
-
-    // await browser.close();
   } catch (error) {
     console.log(error);
   }

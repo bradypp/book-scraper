@@ -30,14 +30,14 @@ const linkScraper = async () => {
         const dbLinks = await Link.find().sort('linksScrapedAt').limit(30000);
         let startingLinks = dbLinks.map(el => el.link);
 
-        let newCount = 0;
-        const newLinks = [];
-        
+        let newLinksCount = 0;
+        const scrapedLinks = [];
+
         // Get links from starting page if none in db
         if (startingLinks.length === 0) {
           await page.goto('https://www.goodreads.com/book', scraperConfig.pageLoadOptions);
           startingLinks.push(...(await page.$$eval('a', helpers.scrapeHandler)));
-          newLinks.push(...startingLinks);
+          scrapedLinks.push(...startingLinks);
         }
 
         startingLinks = helpers.shuffleArray(startingLinks);
@@ -60,7 +60,7 @@ const linkScraper = async () => {
                   : [];
               });
 
-              newLinks.push(
+              scrapedLinks.push(
                 ...[
                   ...new Set([
                     ...(await page.$$eval('.rightContainer a', helpers.scrapeHandler)),
@@ -69,17 +69,17 @@ const linkScraper = async () => {
                 ],
               );
             } else {
-              newLinks.push(...[...new Set(await page.$$eval('a', helpers.scrapeHandler))]);
+              scrapedLinks.push(...[...new Set(await page.$$eval('a', helpers.scrapeHandler))]);
             }
 
-            for (let j = 0; j < newLinks.length; j++) {
+            for (let j = 0; j < scrapedLinks.length; j++) {
               try {
-                const linkDoc = await Link.findOne({ link: newLinks[j] });
+                const linkDoc = await Link.findOne({ link: scrapedLinks[j] });
                 if (!linkDoc) {
                   await Link.create({
-                    link: newLinks[j],
+                    link: scrapedLinks[j],
                   });
-                  newCount++
+                  newLinksCount++
                 } else {
                   linkDoc.linksScrapedAt = Date.now();
                   linkDoc.save();
@@ -92,14 +92,11 @@ const linkScraper = async () => {
             console.error(error);
           }
         }
-        console.log(`${newLinks.length} Total Links Scraped`);
-        console.log(`${newCount} New Links Scraped`);
+        console.log({ newLinksCount, totalLinksScraped: scrapedLinks.length });
       } catch (error) {
         console.log(error);
       }
     }
-
-    // await browser.close();
   } catch (error) {
     console.log(error);
   }

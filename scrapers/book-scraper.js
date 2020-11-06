@@ -32,28 +32,28 @@ const bookScraper = async () => {
         const limit = Math.floor(Math.random() * 5000 + 1000);
         const dbLinks = await Link.find({ link: { $regex: 'book/show' } })
           .sort('dataScrapedAt')
-          .select('link')
+          .select('link bookId')
           .limit(limit);
-        const bookLinks = helpers.shuffleArray([...new Set(dbLinks.map(el => el.link))]);
+        const bookLinks = helpers.shuffleArray(dbLinks);
 
-        let scrapedCount = 0;
-        let newCount = 0;
-        let updatedCount = 0;
+        let scrapedLinksCount = 0;
+        let newBooksCount = 0;
+        let updatedBooksCount = 0;
 
         for (let i = 0; i < bookLinks.length; i++) {
           try {
-            if (!bookLinks[i].includes('book/show')) continue;
+            if (!bookLinks[i].link.includes('book/show')) continue;
 
             // Go to each book page
-            await page.goto(bookLinks[i], scraperConfig.pageLoadOptions);
+            await page.goto(bookLinks[i].link, scraperConfig.pageLoadOptions);
 
-            const title = await page.$eval('#bookTitle', el => el.innerText.trim());
+            // const title = await page.$eval('#bookTitle', el => el.innerText.trim());
 
-            const bookDoc = await Book.findOne({ title });
+            const bookDoc = await Book.findOne({ bookId: bookLinks[i].bookId });
             const bookUrl = await page.evaluate(() => {
               return location
                 ? `${location.protocol}//${location.host}${location.pathname}`.toLowerCase()
-                : bookLinks[i] || null;
+                : bookLinks[i].link;
             });
 
             // Get book data
@@ -202,7 +202,7 @@ const bookScraper = async () => {
             if (tagsLink && typeof tagsLink === 'string') {
               try {
                 await page.goto(tagsLink, scraperConfig.pageLoadOptions);
-                tags = await page.evaluate(args => {
+                tags = await page.evaluate(() => {
                   const tagElements = document.querySelectorAll('.mainContent .leftContainer a');
                   return Array.from(tagElements)
                     .filter(
@@ -246,10 +246,17 @@ const bookScraper = async () => {
                                 : null;
 
                             const aTags = el.getElementsByTagName('a');
+
                             const bookLink =
                               aTags && aTags.length !== 0 && aTags[0].href
-                                ? aTags[0].href.toLowerCase()
+                                ? aTags[0].href.toLowerCase().split('#')[0].split('?')[0]
                                 : null;
+                            const bookUrl = bookLink
+                              ? !bookLink.startsWith('https://www.goodreads.com')
+                                ? 'https://www.goodreads.com' + bookLink
+                                : bookLink
+                              : null;
+
                             const bookTitle =
                               aTags && aTags.length !== 0 && aTags[1].innerText
                                 ? aTags[1].innerText.trim()
@@ -259,7 +266,7 @@ const bookScraper = async () => {
                               seriesNumber = bookNumber;
                             }
                             return {
-                              goodreadsUrl: bookLink,
+                              goodreadsUrl: bookUrl,
                               seriesNumber: bookNumber,
                               title: bookTitle,
                             };
@@ -279,7 +286,7 @@ const bookScraper = async () => {
                     };
                   },
                   {
-                    title,
+                    title: bookData.title,
                   },
                 );
                 series = seriesData.series;
@@ -351,13 +358,12 @@ const bookScraper = async () => {
               .utc()
               .format();
 
+            let bookId = null;
             if (!bookDoc) {
               try {
                 const doc = await Book.create({
                   ...bookData,
-                  goodreadsUrls: [bookUrl],
-                  latestGoodreadsUrl: bookUrl,
-                  title,
+                  goodreadsUrl: bookUrl,
                   latestPublished: latestPublished !== 'Invalid date' ? latestPublished : null,
                   latestPublishedFormat:
                     latestPublished !== 'Invalid date' && latestPublishedFormat
@@ -375,30 +381,26 @@ const bookScraper = async () => {
                   booksInSeries,
                   updatedAt: Date.now(),
                 });
-                newCount++;
+                console.log(doc);
+                bookId = doc.id;
+                newBooksCount++;
               } catch (error) {
                 console.error(error);
               }
             } else {
               try {
-                const isBookDataLatestPublishedAfterDoc =
-                  latestPublished &&
-                  latestPublished !== 'Invalid Date' &&
-                  bookDoc.latestPublished < new Date(latestPublished);
-                const isBookDataLatestDateEqualToDoc =
-                  latestPublished &&
-                  latestPublished !== 'Invalid Date' &&
-                  bookDoc.latestPublished === new Date(latestPublished);
-
+                bookDoc.latestPublished =
+                  latestPublished !== 'Invalid date' ? latestPublished : bookDoc.latestPublished;
+                bookDoc.latestPublishedFormat =
+                  latestPublished !== 'Invalid Date'
+                    ? latestPublishedFormat
+                    : bookDoc.latestPublishedFormat;
                 bookDoc.firstPublished =
                   firstPublished !== 'Invalid date' ? firstPublished : bookDoc.firstPublished;
                 bookDoc.firstPublishedFormat =
                   firstPublished !== 'Invalid Date'
                     ? firstPublishedFormat
                     : bookDoc.firstPublishedFormat;
-
-                // Update every time
-                bookDoc.goodreadsUrls = [...new Set([...bookDoc.goodreadsUrls, bookUrl])];
                 bookDoc.relatedBooksUrls = [
                   ...new Set([...bookData.relatedBooksUrls, ...bookDoc.relatedBooksUrls]),
                 ];
@@ -413,55 +415,51 @@ const bookScraper = async () => {
                   booksInSeries && booksInSeries.length !== 0
                     ? booksInSeries
                     : bookDoc.booksInSeries;
+                bookDoc.description = bookData.description || bookDoc.description;
+                bookDoc.descriptionHTML = bookData.description || bookDoc.descriptionHTML;
+                bookDoc.descriptionHTMLShort = bookData.description || bookDoc.descriptionHTMLShort;
+                bookDoc.isbn = bookData.isbn || bookDoc.isbn;
+                bookDoc.numberOfPages = bookData.numberOfPages || bookDoc.numberOfPages;
+                bookDoc.authors =
+                  bookData.authors && bookData.authors.length !== 0
+                    ? bookData.authors
+                    : bookDoc.authors;
 
-                // Update if it's the latest version recorder or later
-                if (isBookDataLatestDateEqualToDoc || isBookDataLatestPublishedAfterDoc) {
-                  bookDoc.description = bookData.description || bookDoc.description;
-                  bookDoc.descriptionHTML = bookData.description || bookDoc.descriptionHTML;
-                  bookDoc.descriptionHTMLShort =
-                    bookData.description || bookDoc.descriptionHTMLShort;
-                }
-
-                //  Update if it's a later version
-                if (isBookDataLatestPublishedAfterDoc) {
-                  bookDoc.latestGoodreadsUrl = bookUrl;
+                if (
+                  latestPublished &&
+                  latestPublished !== 'Invalid Date' &&
+                  bookDoc.latestPublished !== new Date(latestPublished)
+                ) {
                   bookDoc.coverImage = coverImageUrl
                     ? await imageUpload(coverImageUrl)
                     : bookDoc.coverImageUrl;
-                  bookDoc.authors =
-                    bookData.authors && bookData.authors.length !== 0
-                      ? bookData.authors
-                      : bookDoc.authors;
                   bookDoc.bookEdition = bookData.bookEdition || bookDoc.bookEdition;
                   bookDoc.bookFormat = bookData.bookFormat || bookDoc.bookFormat;
-                  bookDoc.numberOfPages = bookData.numberOfPages || bookDoc.numberOfPages;
-                  bookDoc.isbn = bookData.isbn || bookDoc.isbn;
-                  bookDoc.latestPublished = latestPublished || bookDoc.latestPublished;
-                  bookDoc.latestPublishedFormat =
-                    latestPublishedFormat || bookDoc.latestPublishedFormat;
                 }
                 bookDoc.updatedAt = Date.now();
                 bookDoc.save();
-                updatedCount++;
+                updatedBooksCount++;
               } catch (error) {
                 console.error(error);
               }
             }
-            await Link.updateOne({ link: bookLinks[i] }, { dataScrapedAt: Date.now() });
-            scrapedCount++;
+            await Link.updateOne(
+              { link: bookLinks[i].link },
+              {
+                bookId,
+                dataScrapedAt: Date.now(),
+              },
+            );
+            scrapedLinksCount++;
           } catch (error) {
             console.error(error);
           }
         }
-        console.log(`${newCount} New Books Saved`);
-        console.log(`${updatedCount} Existing Books Updated`);
-        console.log(`${scrapedCount} Book Links Scraped`);
+        console.log({ newBooksCount, updatedBooksCount, scrapedLinksCount });
       } catch (error) {
         console.error(error);
       }
     }
-
-    // await browser.close();
   } catch (error) {
     console.error(error);
   }
