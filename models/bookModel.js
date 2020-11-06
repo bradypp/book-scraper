@@ -19,7 +19,6 @@ const bookSchema = new Schema(
     title: {
       type: String,
       trim: true,
-      unique: true,
     },
     seriesRaw: {
       type: String,

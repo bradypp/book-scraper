@@ -14,6 +14,10 @@ module.exports = {
             selector: '#coverImage',
         },
         {
+            name: 'title',
+            selector: '#bookTitle',
+        },
+        {
             name: 'series',
             selector: '#bookSeries a',
         },

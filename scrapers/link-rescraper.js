@@ -24,13 +24,17 @@ const linkScraper = async () => {
     // Wait for sign in to finish by waiting for personal nav
     await page.waitForSelector('.personalNav', { visible: false, timeout: 0 });
 
+    let loopCount = 0;
+    let linksScrapedCount = 0;
+    let newLinksCount = 0;
     while (true) {
       try {
+        loopCount++;
+
         // Carry on from where you left off
         const dbLinks = await Link.find().sort('linksScrapedAt').limit(30000);
         let startingLinks = dbLinks.map(el => el.link);
 
-        let newLinksCount = 0;
         const scrapedLinks = [];
 
         // Get links from starting page if none in db
@@ -84,6 +88,7 @@ const linkScraper = async () => {
                   linkDoc.linksScrapedAt = Date.now();
                   linkDoc.save();
                 }
+                linksScrapedCount++;
               } catch (error) {
                 console.error(error);
               }
@@ -92,7 +97,7 @@ const linkScraper = async () => {
             console.error(error);
           }
         }
-        console.log({ newLinksCount, totalLinksScraped: scrapedLinks.length });
+        console.log({ loopCount, newLinksCount, totalLinksScraped: scrapedLinks.length });
       } catch (error) {
         console.log(error);
       }

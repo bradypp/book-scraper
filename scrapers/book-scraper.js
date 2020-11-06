@@ -27,36 +27,29 @@ const bookScraper = async () => {
     // Wait for sign in to finish by waiting for personal nav
     await page.waitForSelector('.personalNav', { visible: false, timeout: 0 });
 
+    let loopCount = 0;
+    let scrapedLinksCount = 0;
+    let newBooksCount = 0;
+    let updatedBooksCount = 0;
     while (true) {
       try {
+        loopCount++;
         const limit = Math.floor(Math.random() * 5000 + 1000);
         const dbLinks = await Link.find({ link: { $regex: 'book/show' } })
           .sort('dataScrapedAt')
-          .select('link bookId')
+          .select('link')
           .limit(limit);
-        const bookLinks = helpers.shuffleArray(dbLinks);
-
-        let scrapedLinksCount = 0;
-        let newBooksCount = 0;
-        let updatedBooksCount = 0;
+        const bookLinks = helpers.shuffleArray([...new Set(dbLinks.map(el => el.link))]);
 
         for (let i = 0; i < bookLinks.length; i++) {
           try {
-            if (!bookLinks[i].link.includes('book/show')) continue;
+            const bookUrl = bookLinks[i];
+            if (!bookUrl.includes('book/show')) continue;
 
-            // Go to each book page
-            await page.goto(bookLinks[i].link, scraperConfig.pageLoadOptions);
+            await page.goto(bookUrl, scraperConfig.pageLoadOptions);
 
-            // const title = await page.$eval('#bookTitle', el => el.innerText.trim());
+            const bookDoc = await Book.findOne({ goodreadsUrl: bookUrl });
 
-            const bookDoc = await Book.findOne({ bookId: bookLinks[i].bookId });
-            const bookUrl = await page.evaluate(() => {
-              return location
-                ? `${location.protocol}//${location.host}${location.pathname}`.toLowerCase()
-                : bookLinks[i].link;
-            });
-
-            // Get book data
             const scrapedData = await page.evaluate(
               args => {
                 const { selectors } = args;
@@ -129,7 +122,10 @@ const bookScraper = async () => {
 
                 return {
                   coverImageUrl: bookElements.coverImage ? bookElements.coverImage.src : null,
-                  title: bookElements.title ? bookElements.title.innerText : null,
+                  title:
+                    bookElements.title && bookElements.title.innerText
+                      ? bookElements.title.innerText.trim()
+                      : null,
                   seriesRaw: bookElements.series ? bookElements.series.innerText : null,
                   seriesLink: bookElements.series ? bookElements.series.href : null,
                   authors:
@@ -167,7 +163,17 @@ const bookScraper = async () => {
                   numberOfPages,
                   relatedBooksUrls:
                     bookElements.relatedBooks && bookElements.relatedBooks.length !== 0
-                      ? Array.from(bookElements.relatedBooks).map(link => link.href.toLowerCase())
+                      ? Array.from(bookElements.relatedBooks)
+                          .map(link => {
+                            if (link.href) {
+                              const bookLink = link.href.toLowerCase().split('#')[0].split('?')[0];
+                              return !bookLink.startsWith('https://www.goodreads.com')
+                                ? 'https://www.goodreads.com' + bookLink
+                                : bookLink;
+                            }
+                            return null;
+                          })
+                          .filter(Boolean)
                       : [],
                   bookEdition: bookElements.bookEdition ? bookElements.bookEdition.innerText : null,
                   bookFormat: bookElements.bookFormat ? bookElements.bookFormat.innerText : null,
@@ -177,9 +183,14 @@ const bookScraper = async () => {
                     bookElements.genres && bookElements.genres.length !== 0
                       ? [
                           ...new Set(
-                            Array.from(bookElements.genres).map(el =>
-                              el.innerText ? el.innerText.toLowerCase().trim() : null,
-                            ),
+                            Array.from(bookElements.genres)
+                              .map(el => {
+                                if (el.innerText) {
+                                  return el.innerText.toLowerCase().trim();
+                                }
+                                return null;
+                              })
+                              .filter(Boolean),
                           ),
                         ]
                       : [],
@@ -207,12 +218,19 @@ const bookScraper = async () => {
                   return Array.from(tagElements)
                     .filter(
                       el =>
+                        el.href &&
                         el.href.includes('genres') &&
+                        el.innerText &&
                         el.innerText.search(
                           /book|read|own|have|star|my|wishlist|wish-list|to-buy|\d{4}|tbr/,
                         ) === -1,
                     )
-                    .map(el => el.innerText.toLowerCase().trim())
+                    .map(el => {
+                      if (el.innerText) {
+                        return el.innerText.toLowerCase().trim();
+                      }
+                      return null;
+                    })
                     .slice(0, 20);
                 });
               } catch (error) {
@@ -235,11 +253,14 @@ const bookScraper = async () => {
                       bookElements && bookElements.length !== 0
                         ? Array.from(bookElements).map(el => {
                             const h3Tags = el.getElementsByTagName('h3');
-                            const bookNumberText =
-                              h3Tags && h3Tags.length !== 0
-                                ? h3Tags[0].innerText.trim().toLowerCase()
-                                : null;
-                            const bookNumberMatch = bookNumberText.match(/book (.+)/);
+                            const bookNumberTextRaw =
+                              h3Tags && h3Tags.length !== 0 ? h3Tags[0].innerText : null;
+                            const bookNumberText = bookNumberTextRaw
+                              ? bookNumberTextRaw.trim().toLowerCase()
+                              : null;
+                            const bookNumberMatch = bookNumberText
+                              ? bookNumberText.match(/book (.+)/)
+                              : null;
                             const bookNumber =
                               bookNumberMatch && bookNumberMatch.length >= 2
                                 ? bookNumberMatch[1]
@@ -247,11 +268,11 @@ const bookScraper = async () => {
 
                             const aTags = el.getElementsByTagName('a');
 
-                            const bookLink =
-                              aTags && aTags.length !== 0 && aTags[0].href
-                                ? aTags[0].href.toLowerCase().split('#')[0].split('?')[0]
-                                : null;
-                            const bookUrl = bookLink
+                            const bookLinkRaw = aTags && aTags.length !== 0 && aTags[0].href;
+                            const bookLink = bookLinkRaw
+                              ? bookLinkRaw.toLowerCase().split('#')[0].split('?')[0]
+                              : null;
+                            const bookLinkFinal = bookLink
                               ? !bookLink.startsWith('https://www.goodreads.com')
                                 ? 'https://www.goodreads.com' + bookLink
                                 : bookLink
@@ -259,14 +280,18 @@ const bookScraper = async () => {
 
                             const bookTitle =
                               aTags && aTags.length !== 0 && aTags[1].innerText
-                                ? aTags[1].innerText.trim()
+                                ? aTags[1].innerText
                                 : null;
 
-                            if (bookTitle.trim().toLowerCase() === title.toLowerCase()) {
+                            if (
+                              bookTitle &&
+                              title &&
+                              bookTitle.trim().toLowerCase() === title.trim().toLowerCase()
+                            ) {
                               seriesNumber = bookNumber;
                             }
                             return {
-                              goodreadsUrl: bookUrl,
+                              goodreadsUrl: bookLinkFinal,
                               seriesNumber: bookNumber,
                               title: bookTitle,
                             };
@@ -317,51 +342,63 @@ const bookScraper = async () => {
             );
             const yearRegex = new RegExp(/\d{4}/);
 
-            const latestContainsDay = dayRegex.test(latestPublishedString);
-            const latestContainsMonth = monthRegex.test(latestPublishedString);
-            const latestContainsYear = yearRegex.test(latestPublishedString);
-
+            let latestPublished = null;
             let latestPublishedFormat = null;
-            if (latestContainsDay && latestContainsMonth && latestContainsYear) {
-              latestPublishedFormat = 'MMMM Do YYYY';
-            } else if (latestContainsDay && latestContainsMonth && !latestContainsYear) {
-              latestPublishedFormat = 'MMMM Do';
-            } else if (!latestContainsDay && latestContainsMonth && latestContainsYear) {
-              latestPublishedFormat = 'MMMM YYYY';
-            } else if (!latestContainsDay && !latestContainsMonth && latestContainsYear) {
-              latestPublishedFormat = 'YYYY';
-            } else if (latestContainsDay && !latestContainsMonth && latestContainsYear) {
-              latestPublishedFormat = 'Do YYYY';
+            if (latestPublishedString) {
+              const latestContainsDay = dayRegex.test(latestPublishedString);
+              const latestContainsMonth = monthRegex.test(latestPublishedString);
+              const latestContainsYear = yearRegex.test(latestPublishedString);
+
+              if (latestContainsDay && latestContainsMonth && latestContainsYear) {
+                latestPublishedFormat = 'MMMM Do YYYY';
+              } else if (latestContainsDay && latestContainsMonth && !latestContainsYear) {
+                latestPublishedFormat = 'MMMM Do';
+              } else if (!latestContainsDay && latestContainsMonth && latestContainsYear) {
+                latestPublishedFormat = 'MMMM YYYY';
+              } else if (!latestContainsDay && !latestContainsMonth && latestContainsYear) {
+                latestPublishedFormat = 'YYYY';
+              } else if (latestContainsDay && !latestContainsMonth && latestContainsYear) {
+                latestPublishedFormat = 'Do YYYY';
+              }
+
+              if (latestPublishedString && latestPublishedFormat) {
+                latestPublished = moment(latestPublishedString, latestPublishedFormat)
+                  .utc()
+                  .format();
+              } else {
+                latestPublished = latestPublishedString;
+              }
             }
 
-            const firstContainsDay = dayRegex.test(firstPublishedString);
-            const firstContainsMonth = monthRegex.test(firstPublishedString);
-            const firstContainsYear = yearRegex.test(firstPublishedString);
-
+            let firstPublished = null;
             let firstPublishedFormat = null;
-            if (firstContainsDay && firstContainsMonth && firstContainsYear) {
-              firstPublishedFormat = 'MMMM Do YYYY';
-            } else if (firstContainsDay && firstContainsMonth && !firstContainsYear) {
-              firstPublishedFormat = 'MMMM Do';
-            } else if (!firstContainsDay && firstContainsMonth && firstContainsYear) {
-              firstPublishedFormat = 'MMMM YYYY';
-            } else if (!firstContainsDay && !firstContainsMonth && firstContainsYear) {
-              firstPublishedFormat = 'YYYY';
-            } else if (firstContainsDay && !firstContainsMonth && firstContainsYear) {
-              firstPublishedFormat = 'Do YYYY';
+            if (firstPublishedString) {
+              const firstContainsDay = dayRegex.test(firstPublishedString);
+              const firstContainsMonth = monthRegex.test(firstPublishedString);
+              const firstContainsYear = yearRegex.test(firstPublishedString);
+
+              if (firstContainsDay && firstContainsMonth && firstContainsYear) {
+                firstPublishedFormat = 'MMMM Do YYYY';
+              } else if (firstContainsDay && firstContainsMonth && !firstContainsYear) {
+                firstPublishedFormat = 'MMMM Do';
+              } else if (!firstContainsDay && firstContainsMonth && firstContainsYear) {
+                firstPublishedFormat = 'MMMM YYYY';
+              } else if (!firstContainsDay && !firstContainsMonth && firstContainsYear) {
+                firstPublishedFormat = 'YYYY';
+              } else if (firstContainsDay && !firstContainsMonth && firstContainsYear) {
+                firstPublishedFormat = 'Do YYYY';
+              }
+
+              if (firstPublishedString && firstPublishedFormat) {
+                firstPublished = moment(firstPublishedString, firstPublishedFormat).utc().format();
+              } else {
+                firstPublished = firstPublishedString;
+              }
             }
 
-            const latestPublished = moment(latestPublishedString, latestPublishedFormat)
-              .utc()
-              .format();
-            const firstPublished = moment(firstPublishedString, firstPublishedFormat)
-              .utc()
-              .format();
-
-            let bookId = null;
             if (!bookDoc) {
               try {
-                const doc = await Book.create({
+                await Book.create({
                   ...bookData,
                   goodreadsUrl: bookUrl,
                   latestPublished: latestPublished !== 'Invalid date' ? latestPublished : null,
@@ -381,8 +418,6 @@ const bookScraper = async () => {
                   booksInSeries,
                   updatedAt: Date.now(),
                 });
-                console.log(doc);
-                bookId = doc.id;
                 newBooksCount++;
               } catch (error) {
                 console.error(error);
@@ -390,15 +425,19 @@ const bookScraper = async () => {
             } else {
               try {
                 bookDoc.latestPublished =
-                  latestPublished !== 'Invalid date' ? latestPublished : bookDoc.latestPublished;
+                  latestPublished && latestPublished !== 'Invalid date'
+                    ? latestPublished
+                    : bookDoc.latestPublished;
                 bookDoc.latestPublishedFormat =
-                  latestPublished !== 'Invalid Date'
+                  latestPublished && latestPublished !== 'Invalid Date'
                     ? latestPublishedFormat
                     : bookDoc.latestPublishedFormat;
                 bookDoc.firstPublished =
-                  firstPublished !== 'Invalid date' ? firstPublished : bookDoc.firstPublished;
+                  firstPublished && firstPublished !== 'Invalid date'
+                    ? firstPublished
+                    : bookDoc.firstPublished;
                 bookDoc.firstPublishedFormat =
-                  firstPublished !== 'Invalid Date'
+                  firstPublished && firstPublished !== 'Invalid Date'
                     ? firstPublishedFormat
                     : bookDoc.firstPublishedFormat;
                 bookDoc.relatedBooksUrls = [
@@ -424,18 +463,8 @@ const bookScraper = async () => {
                   bookData.authors && bookData.authors.length !== 0
                     ? bookData.authors
                     : bookDoc.authors;
-
-                if (
-                  latestPublished &&
-                  latestPublished !== 'Invalid Date' &&
-                  bookDoc.latestPublished !== new Date(latestPublished)
-                ) {
-                  bookDoc.coverImage = coverImageUrl
-                    ? await imageUpload(coverImageUrl)
-                    : bookDoc.coverImageUrl;
-                  bookDoc.bookEdition = bookData.bookEdition || bookDoc.bookEdition;
-                  bookDoc.bookFormat = bookData.bookFormat || bookDoc.bookFormat;
-                }
+                bookDoc.bookEdition = bookData.bookEdition || bookDoc.bookEdition;
+                bookDoc.bookFormat = bookData.bookFormat || bookDoc.bookFormat;
                 bookDoc.updatedAt = Date.now();
                 bookDoc.save();
                 updatedBooksCount++;
@@ -443,19 +472,13 @@ const bookScraper = async () => {
                 console.error(error);
               }
             }
-            await Link.updateOne(
-              { link: bookLinks[i].link },
-              {
-                bookId,
-                dataScrapedAt: Date.now(),
-              },
-            );
             scrapedLinksCount++;
+            await Link.updateOne({ link: bookUrl }, { dataScrapedAt: Date.now() });
           } catch (error) {
             console.error(error);
           }
         }
-        console.log({ newBooksCount, updatedBooksCount, scrapedLinksCount });
+        console.log({ loopCount, newBooksCount, updatedBooksCount, scrapedLinksCount });
       } catch (error) {
         console.error(error);
       }

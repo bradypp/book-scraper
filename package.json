@@ -9,7 +9,7 @@
     "genre-link-scraper": "node scrapers/genre-link-scraper.js",
     "book-scraper": "node scrapers/book-scraper.js",
     "scrape-links": "concurrently \"npm:link-scraper\" \"npm:link-rescraper\"",
-    "scrape-books": "concurrently \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" ",
+    "scrape-books": "concurrently \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" ",
     "scrape-everything": "concurrently \"npm:scrape-links\" \"npm:scrape-books\""
   },
   "author": "Paul Brady",
