@@ -12,7 +12,7 @@ const Link = require('../models/linkModel');
 
 const bookScraper = async () => {
   try {
-    const browser = await puppeteer.launch({ headless: true });
+    const browser = await puppeteer.launch({ headless: false });
     const page = await browser.newPage();
     await page.setDefaultNavigationTimeout(0);
 
@@ -37,7 +37,7 @@ const bookScraper = async () => {
 
         const sort = 'dataScrapedAt';
         const pageNumber = process.argv[2] * 1 || 1;
-        const limit = 1500;
+        const limit = 5000;
         const skip = (pageNumber - 1) * limit;
 
         const dbLinks = await Link.find({ link: { $regex: 'book/show' } })
@@ -45,9 +45,7 @@ const bookScraper = async () => {
           .select('link')
           .skip(skip)
           .limit(limit);
-
-        // const bookLinks = helpers.shuffleArray([...new Set(dbLinks.map(el => el.link))]);
-        const bookLinks = dbLinks.map(el => el.link);
+        const bookLinks = helpers.shuffleArray([...new Set(dbLinks.map(el => el.link))]);
 
         for (let i = 0; i < bookLinks.length; i++) {
           try {
@@ -57,20 +55,16 @@ const bookScraper = async () => {
             await page.goto(bookUrl, scraperConfig.pageLoadOptions);
 
             // Get links on book page
-            const rightContainerLinks = await page.$$eval(
-              '.rightContainer a',
-              helpers.scrapeHandler,
-            );
-
+            const scrapedLinks = [];
             const listLinks = await page.$$eval('.leftContainer a', links => {
               return links
                 .filter(el => {
                   if (!el || !el.href) {
                     return false;
                   }
-                  return new RegExp(/^(https:\/\/www.goodreads.com\/|\/)(list\/show)[\/?#]/).test(
-                    el.href.toLowerCase(),
-                  );
+                  return new RegExp(
+                    /^(https:\/\/www.goodreads.com\/|\/)(list\/show|list\/book)[\/?#]/,
+                  ).test(el.href.toLowerCase());
                 })
                 .map(el => {
                   let url = el.href.toLowerCase().split('#')[0];
@@ -84,6 +78,30 @@ const bookScraper = async () => {
                   return url;
                 });
             });
+
+            scrapedLinks.push(
+              ...[
+                ...new Set([
+                  ...(await page.$$eval('.rightContainer a', helpers.scrapeHandler)),
+                  ...listLinks,
+                ]),
+              ],
+            );
+
+            for (let j = 0; j < scrapedLinks.length; j++) {
+              try {
+                const linkDoc = await Link.findOne({ link: scrapedLinks[j] });
+                if (!linkDoc) {
+                  await Link.create({
+                    link: scrapedLinks[j],
+                  });
+                }
+              } catch (error) {
+                console.error(error);
+              }
+            }
+
+            await Link.updateOne({ link: bookUrl }, { linksScrapedAt: Date.now() });
 
             const scrapedData = await page.evaluate(
               args => {
@@ -162,9 +180,6 @@ const bookScraper = async () => {
                       ? bookElements.title.innerText.trim()
                       : null,
                   seriesLink: bookElements.series ? bookElements.series.href : null,
-                  relatedBooksLink: bookElements.relatedBooksLink
-                    ? bookElements.relatedBooksLink.href
-                    : null,
                   authors:
                     bookElements.authors && bookElements.authors.length !== 0
                       ? Array.from(bookElements.authors).map(el =>
@@ -186,26 +201,21 @@ const bookScraper = async () => {
                   relatedBooksUrls:
                     bookElements.relatedBooks && bookElements.relatedBooks.length !== 0
                       ? Array.from(bookElements.relatedBooks)
-                          .filter(el => {
-                            if (!el || !el.href) {
-                              return false;
+                          .map(link => {
+                            if (link.href) {
+                              const bookLink = link.href
+                                .toLowerCase()
+                                .split('#')[0]
+                                .split('?')[0]
+                                .replace(/\/+$/, '');
+                              return !bookLink.startsWith('https://www.goodreads.com') &&
+                                bookLink.startsWith('/')
+                                ? 'https://www.goodreads.com' + bookLink
+                                : bookLink;
                             }
-                            return new RegExp(
-                              /^(https:\/\/www.goodreads.com\/|\/)(book\/show)[\/?#]/,
-                            ).test(el.href.toLowerCase());
+                            return null;
                           })
-                          .map(el => {
-                            let url = el.href.toLowerCase().split('#')[0];
-                            url = url.split('?')[0];
-                            url = url.replace(/\/+$/, '');
-                            if (
-                              !url.startsWith('https://www.goodreads.com') &&
-                              url.startsWith('/')
-                            ) {
-                              url = 'https://www.goodreads.com' + url;
-                            }
-                            return url;
-                          })
+                          .filter(Boolean)
                       : [],
                   latestPublishedString,
                   firstPublishedString,
@@ -236,57 +246,9 @@ const bookScraper = async () => {
               coverImageUrl,
               latestPublishedString,
               firstPublishedString,
-              relatedBooksUrls,
-              relatedBooksLink,
               ...bookData
             } = scrapedData;
 
-            // To get all related books (get relatedBooksLink)
-            let relatedBooks = [];
-            if (relatedBooksLink && typeof relatedBooksLink === 'string') {
-              try {
-                await page.goto(relatedBooksLink, scraperConfig.pageLoadOptions);
-                relatedBooks = [
-                  ...new Set([
-                    ...relatedBooksUrls,
-                    ...(await page.evaluate(
-                      args => {
-                        const { bookUrl } = args;
-                        const linkElements = document.querySelectorAll('a');
-                        return Array.from(linkElements)
-                          .filter(el => {
-                            if (!el || !el.href) {
-                              return false;
-                            }
-                            return (
-                              new RegExp(
-                                /^(https:\/\/www.goodreads.com\/|\/)(book\/show)[\/?#]/,
-                              ).test(el.href.toLowerCase()) && !el.href.includes(bookUrl)
-                            );
-                          })
-                          .map(el => {
-                            let url = el.href.toLowerCase().split('#')[0];
-                            url = url.split('?')[0];
-                            url = url.replace(/\/+$/, '');
-                            if (
-                              !url.startsWith('https://www.goodreads.com') &&
-                              url.startsWith('/')
-                            ) {
-                              url = 'https://www.goodreads.com' + url;
-                            }
-                            return url;
-                          });
-                      },
-                      { bookUrl },
-                    )),
-                  ]),
-                ];
-              } catch (error) {
-                console.error(error);
-              }
-            }
-
-            // TODO Also scrape tag links
             let tags = [];
             if (tagsLink && typeof tagsLink === 'string') {
               try {
@@ -476,7 +438,6 @@ const bookScraper = async () => {
               try {
                 await Book.create({
                   ...bookData,
-                  relatedBooksUrls: relatedBooks,
                   goodreadsUrl: bookUrl,
                   latestPublished: latestPublished !== 'Invalid date' ? latestPublished : null,
                   latestPublishedFormat:
@@ -518,7 +479,7 @@ const bookScraper = async () => {
                     ? firstPublishedFormat
                     : bookDoc.firstPublishedFormat;
                 bookDoc.relatedBooksUrls = [
-                  ...new Set([...relatedBooks, ...bookDoc.relatedBooksUrls]),
+                  ...new Set([...bookData.relatedBooksUrls, ...bookDoc.relatedBooksUrls]),
                 ];
                 bookDoc.ratingValue = bookData.ratingValue || bookDoc.ratingValue;
                 bookDoc.ratingCount = bookData.ratingCount || bookDoc.ratingCount;
@@ -549,44 +510,15 @@ const bookScraper = async () => {
                 console.error(error);
               }
             }
-
-            const scrapedLinks = [
-              ...new Set([
-                ...rightContainerLinks,
-                ...listLinks,
-                ...relatedBooks,
-                ...seriesBooksUrls,
-              ]),
-            ];
-
-            if (seriesLink) scrapedLinks.push(seriesLink);
-
-            for (let j = 0; j < scrapedLinks.length; j++) {
-              try {
-                const linkDoc = await Link.findOne({ link: scrapedLinks[j] });
-                if (!linkDoc) {
-                  await Link.create({
-                    link: scrapedLinks[j],
-                  });
-                }
-              } catch (error) {
-                console.error(error);
-              }
-            }
             scrapedLinksCount++;
-            await Link.updateOne(
-              { link: bookUrl },
-              { dataScrapedAt: Date.now(), linksScrapedAt: Date.now() },
-            );
-            if (scrapedLinksCount % 50 === 0) {
+            await Link.updateOne({ link: bookUrl }, { dataScrapedAt: Date.now() });
+            if (scrapedLinksCount % 100 === 0) {
               console.log({ loopCount, newBooksCount, updatedBooksCount, scrapedLinksCount });
             }
           } catch (error) {
             console.error(error);
           }
         }
-        newBooksCount = 0;
-        updatedBooksCount = 0;
       } catch (error) {
         console.error(error);
       }

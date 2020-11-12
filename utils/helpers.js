@@ -18,24 +18,27 @@ exports.omitKeyValuePairs = (obj, fieldsToOmit) => {
     { ...obj },
   );
 };
-
+// Book specific regex not included list\/book, book\/shelves. Also, /shelf/
+// Add not to include like ?json, add_to_favourite_genres
 exports.scrapeHandler = links => {
   return links
     .filter(el => {
-      if (!el ||!el.href) {
+      if (!el || !el.href) {
         return false;
       }
       return new RegExp(
-        /^(https:\/\/www.goodreads.com\/|\/)(book\/show|book\/shelves|book\/similar|books|list\/show|list\/book|genre|genres|recommendations|series|author\/show|choiceawards|list\/show_tag|shelf\/show|award\/show|list\/tag|new_releases|most_read)[\/?#]/,
+        /^(https:\/\/www.goodreads.com\/|\/)(book\/show|book\/popular_by_date|list\/show|genre|genres|recommendations|series|author\/show|choiceawards|list\/show_tag|shelf\/show|award\/show|genres\/new_releases|genres\/most_read|list\/recently_active_lists|list\/popular_lists|book\/popular_group_books|list\/tag|list\/best_of_month|list\/best_of_year|list\/best_of_century|list\/best_of_decade|list\/best_by_date)/,
+      ).test(el.href.toLowerCase()) && !new RegExp(
+        /^(https:\/\/www.goodreads.com).+(https:\/\/|http:\/\/|add_to_favourite_genres|format=json|original_shelf|shelf\/users)/,
       ).test(el.href.toLowerCase());
     })
     .map(el => {
-      let url = el.href.toLowerCase();
-      url = url.split('#')[0];
+      let url = el.href.toLowerCase().split('#')[0];
       if (url.includes('book/show')) {
         url = url.split('?')[0];
       }
-      if (!url.startsWith('https://www.goodreads.com')) {
+      url = url.replace(/\/+$/, '');
+      if (!url.startsWith('https://www.goodreads.com') && url.startsWith('/')) {
         url = 'https://www.goodreads.com' + url;
       }
       return url;

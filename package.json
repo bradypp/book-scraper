@@ -7,10 +7,19 @@
     "link-scraper": "node scrapers/link-scraper.js",
     "link-rescraper": "node scrapers/link-rescraper.js",
     "genre-link-scraper": "node scrapers/genre-link-scraper.js",
+    "book-link-scraper": "node scrapers/book-link-scraper.js",
+    "list-link-scraper": "node scrapers/list-link-scraper.js",
     "book-scraper": "node scrapers/book-scraper.js",
-    "scrape-links": "concurrently \"npm:link-scraper\" \"npm:link-rescraper\"",
-    "scrape-books": "concurrently \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" \"npm:book-scraper\" ",
-    "scrape-everything": "concurrently \"npm:scrape-links\" \"npm:scrape-books\""
+    "scrape-genres": "concurrently \"npm:genre-link-scraper 1\"  \"npm:genre-link-scraper 2\" \"npm:genre-link-scraper 3\" \"npm:genre-link-scraper 4\" \"npm:genre-link-scraper 5\" ",
+    "scrape-lists": "concurrently \"npm:list-link-scraper 1\"  \"npm:list-link-scraper 2\" \"npm:list-link-scraper 3\" \"npm:list-link-scraper 4\" \"npm:list-link-scraper 5\" \"npm:list-link-scraper 6\" \"npm:list-link-scraper 7\" \"npm:list-link-scraper 8\" \"npm:list-link-scraper 9\" \"npm:list-link-scraper 10\"",
+    "scrape-links-low": "concurrently \"npm:link-scraper 1\"",
+    "scrape-links": "concurrently \"npm:link-scraper 1\" \"npm:link-scraper 2\"",
+    "scrape-books-low": "concurrently \"npm:book-scraper 1\" \"npm:book-scraper 2\" \"npm:book-scraper 3\" \"npm:book-scraper 4\" \"npm:book-scraper 5\" \"npm:book-scraper 6\" \"npm:book-scraper 7\" \"npm:book-scraper 8\" \"npm:book-scraper 9\" \"npm:book-scraper 10\" \"npm:book-scraper 11\" \"npm:book-scraper 12\"",
+    "scrape-books": "concurrently \"npm:book-scraper 1\" \"npm:book-scraper 2\" \"npm:book-scraper 3\" \"npm:book-scraper 4\" \"npm:book-scraper 5\" \"npm:book-scraper 6\" \"npm:book-scraper 7\" \"npm:book-scraper 8\" \"npm:book-scraper 9\" \"npm:book-scraper 10\" \"npm:book-scraper 11\" \"npm:book-scraper 12\" \"npm:book-scraper 13\" \"npm:book-scraper 14\"",
+    "scrape-everything-low": "concurrently \"npm:scrape-links-low\" \"npm:scrape-books-low\"",
+    "scrape-everything": "concurrently \"npm:scrape-links\" \"npm:scrape-books\"",
+    "start-server": "mongod.exe",
+    "start-shell": "mongo.exe"
   },
   "author": "Paul Brady",
   "license": "ISC",
@@ -36,7 +45,7 @@
     "eslint-plugin-import": "^2.22.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-prettier": "^3.1.4",
-    "nodemon": "^2.0.4",
+    "nodemon": "^2.0.6",
     "prettier": "^2.1.1"
   }
 }
