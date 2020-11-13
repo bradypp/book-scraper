@@ -7,10 +7,13 @@ const options = {
 
 const bookSchema = new Schema(
   {
-    goodreadsUrl: {
+    goodreadsUrls: {
+      type: [String],
+      trim: true,
+    },
+    goodreadsId: {
       type: String,
       trim: true,
-      unique: true,
     },
     coverImage: {
       type: String,

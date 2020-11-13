@@ -6,6 +6,9 @@ const linkSchema = new Schema({
     required: true,
     unique: true,
   },
+  blacklisted: {
+    type: Boolean
+  },
   linksScrapedAt: {
     type: Date,
     default: Date.now(),

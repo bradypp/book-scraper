@@ -37,22 +37,26 @@ const bookScraper = async () => {
 
         const sort = 'dataScrapedAt';
         const pageNumber = process.argv[2] * 1 || 1;
-        const limit = 1500;
+        const limit = 2000;
         const skip = (pageNumber - 1) * limit;
 
         const dbLinks = await Link.find({ link: { $regex: 'book/show' } })
           .sort(sort)
-          .select('link')
+          .select('link blacklisted')
           .skip(skip)
           .limit(limit);
 
-        // const bookLinks = helpers.shuffleArray([...new Set(dbLinks.map(el => el.link))]);
-        const bookLinks = dbLinks.map(el => el.link);
-
-        for (let i = 0; i < bookLinks.length; i++) {
+        for (let i = 0; i < dbLinks.length; i++) {
           try {
-            const bookUrl = bookLinks[i];
-            if (!bookUrl.includes('book/show')) continue;
+            const bookUrl = dbLinks[i].link;
+            if (!bookUrl.includes('book/show') || dbLinks[i].blacklisted) continue;
+
+            // Only get new books
+            let bookDoc = await Book.findOne({ goodreadsUrls: bookUrl });
+            if (bookDoc) {
+              await Link.updateOne({ link: bookUrl }, { dataScrapedAt: Date.now() });
+              continue;
+            }
 
             await page.goto(bookUrl, scraperConfig.pageLoadOptions);
 
@@ -157,6 +161,7 @@ const bookScraper = async () => {
 
                 return {
                   coverImageUrl: bookElements.coverImage ? bookElements.coverImage.src : null,
+                  goodreadsId: bookElements.goodreadsId ? bookElements.goodreadsId.value : null,
                   title:
                     bookElements.title && bookElements.title.innerText
                       ? bookElements.title.innerText.trim()
@@ -183,6 +188,8 @@ const bookScraper = async () => {
                   reviewCount,
                   isbn,
                   numberOfPages,
+                  bookEdition: bookElements.bookEdition ? bookElements.bookEdition.innerText : null,
+                  bookFormat: bookElements.bookFormat ? bookElements.bookFormat.innerText : null,
                   relatedBooksUrls:
                     bookElements.relatedBooks && bookElements.relatedBooks.length !== 0
                       ? Array.from(bookElements.relatedBooks)
@@ -309,7 +316,7 @@ const bookScraper = async () => {
                       }
                       return null;
                     })
-                    .slice(0, 20);
+                    .slice(0, 25);
                 });
               } catch (error) {
                 console.error(error);
@@ -471,13 +478,20 @@ const bookScraper = async () => {
               }
             }
 
-            const bookDoc = await Book.findOne({ goodreadsUrl: bookUrl });
+            // let bookDoc = await Book.findOne({ goodreadsUrls: bookUrl });
+            if (!bookDoc && bookData.isbn) {
+              bookDoc = await Book.findOne({ isbn: bookData.isbn });
+            }
+            if (!bookDoc && bookData.goodreadsId) {
+              bookDoc = await Book.findOne({ goodreadsId: bookData.goodreadsId });
+            }
+
             if (!bookDoc) {
               try {
-                await Book.create({
+                const doc = await Book.create({
                   ...bookData,
                   relatedBooksUrls: relatedBooks,
-                  goodreadsUrl: bookUrl,
+                  goodreadsUrls: [bookUrl],
                   latestPublished: latestPublished !== 'Invalid date' ? latestPublished : null,
                   latestPublishedFormat:
                     latestPublished !== 'Invalid date' && latestPublishedFormat
@@ -496,6 +510,7 @@ const bookScraper = async () => {
                   updatedAt: Date.now(),
                 });
                 newBooksCount++;
+                console.log(doc);
               } catch (error) {
                 console.error(error);
               }
@@ -517,6 +532,7 @@ const bookScraper = async () => {
                   firstPublished && firstPublished !== 'Invalid Date'
                     ? firstPublishedFormat
                     : bookDoc.firstPublishedFormat;
+                bookDoc.goodreadsUrls = [...new Set([bookUrl, ...bookDoc.goodreadsUrls])];
                 bookDoc.relatedBooksUrls = [
                   ...new Set([...relatedBooks, ...bookDoc.relatedBooksUrls]),
                 ];
@@ -534,6 +550,7 @@ const bookScraper = async () => {
                 bookDoc.description = bookData.description || bookDoc.description;
                 bookDoc.descriptionHTML = bookData.description || bookDoc.descriptionHTML;
                 bookDoc.descriptionHTMLShort = bookData.description || bookDoc.descriptionHTMLShort;
+                bookDoc.goodreadsId = bookData.goodreadsId || bookDoc.goodreadsId;
                 bookDoc.isbn = bookData.isbn || bookDoc.isbn;
                 bookDoc.numberOfPages = bookData.numberOfPages || bookDoc.numberOfPages;
                 bookDoc.authors =
@@ -544,6 +561,7 @@ const bookScraper = async () => {
                 bookDoc.bookFormat = bookData.bookFormat || bookDoc.bookFormat;
                 bookDoc.updatedAt = Date.now();
                 bookDoc.save();
+                // console.log(bookDoc);
                 updatedBooksCount++;
               } catch (error) {
                 console.error(error);
@@ -578,9 +596,9 @@ const bookScraper = async () => {
               { link: bookUrl },
               { dataScrapedAt: Date.now(), linksScrapedAt: Date.now() },
             );
-            if (scrapedLinksCount % 50 === 0) {
-              console.log({ loopCount, newBooksCount, updatedBooksCount, scrapedLinksCount });
-            }
+            // if (scrapedLinksCount % 50 === 0) {
+            console.log({ loopCount, newBooksCount, updatedBooksCount, scrapedLinksCount });
+            // }
           } catch (error) {
             console.error(error);
           }

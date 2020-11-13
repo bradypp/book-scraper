@@ -50,11 +50,19 @@ module.exports = {
         },
         {
             name: 'goodreadsId',
-            selector: '[data-book-id]',
+            selector: '#book_id',
         },
         {
             name: 'numberOfPages',
             selector: '[itemprop="numberOfPages"]',
+        },
+        {
+            name: 'bookEdition',
+            selector: '[itemprop="bookEdition"]',
+        },
+        {
+            name: 'bookFormat',
+            selector: '[itemprop="bookFormat"]',
         },
         {
             name: 'reviewCount',

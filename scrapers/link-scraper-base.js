@@ -35,7 +35,7 @@ const linkScraper = async (filter, sort = '-createdAt', limit = 10000) => {
         const skip = (pageNumber - 1) * limit;
 
         // Scrape the newest links saved for more
-        const dbLinks = await Link.find(filter).sort(sort).select('link').skip(skip).limit(limit);
+        const dbLinks = await Link.find(filter).sort(sort).select('link blacklisted').skip(skip).limit(limit);
         let startingLinks = dbLinks.map(el => el.link);
         const scrapedLinks = [];
 
@@ -49,6 +49,7 @@ const linkScraper = async (filter, sort = '-createdAt', limit = 10000) => {
 
         for (let i = 0; i < startingLinks.length; i++) {
           try {
+            if (startingLinks[i].blacklisted) continue;
             await page.goto(startingLinks[i], scraperConfig.pageLoadOptions);
 
             if (startingLinks[i].includes('book/show')) {
@@ -102,10 +103,8 @@ const linkScraper = async (filter, sort = '-createdAt', limit = 10000) => {
               }
             }
             scrapedLinksCount++;
-            if (scrapedLinksCount % 100 === 0) {
-              console.log({ loopCount, newLinksCount, scrapedLinksCount });
-              newLinksCount = 0;
-            }
+            console.log({ loopCount, newLinksCount, scrapedLinksCount, link: startingLinks[i] });
+            newLinksCount = 0;
 
             await Link.updateOne({ link: startingLinks[i] }, { linksScrapedAt: Date.now() });
           } catch (error) {
