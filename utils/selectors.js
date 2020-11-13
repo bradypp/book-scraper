@@ -14,6 +14,10 @@ module.exports = {
             selector: '#coverImage',
         },
         {
+            name: 'title',
+            selector: '#bookTitle',
+        },
+        {
             name: 'series',
             selector: '#bookSeries a',
         },
@@ -41,8 +45,16 @@ module.exports = {
             selector: '[id^="relatedWorks"] li a',
         },
         {
+            name: 'relatedBooksLink',
+            selector: '[id^="relatedWorks"] a.actionLink',
+        },
+        {
             name: 'goodreadsId',
-            selector: '[data-book-id]',
+            selector: '#book_id',
+        },
+        {
+            name: 'numberOfPages',
+            selector: '[itemprop="numberOfPages"]',
         },
         {
             name: 'bookEdition',
@@ -51,10 +63,6 @@ module.exports = {
         {
             name: 'bookFormat',
             selector: '[itemprop="bookFormat"]',
-        },
-        {
-            name: 'numberOfPages',
-            selector: '[itemprop="numberOfPages"]',
         },
         {
             name: 'reviewCount',

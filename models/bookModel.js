@@ -7,27 +7,19 @@ const options = {
 
 const bookSchema = new Schema(
   {
-    goodreadsUrls: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
-    latestGoodreadsUrl: {
+    goodreadsUrls: {
+      type: [String],
+      trim: true,
+    },
+    goodreadsId: {
       type: String,
       trim: true,
-      unique: true,
     },
     coverImage: {
       type: String,
       default: 'default.jpg',
     },
     title: {
-      type: String,
-      trim: true,
-      unique: true,
-    },
-    seriesRaw: {
       type: String,
       trim: true,
     },
@@ -39,31 +31,11 @@ const bookSchema = new Schema(
       type: String,
       trim: true,
     },
-    booksInSeries: [
-      {
-        goodreadsUrl: {
-          type: String,
-          trim: true,
-        },
-        title: {
-          type: String,
-          trim: true,
-        },
-        seriesNumber: {
-          type: String,
-          trim: true,
-        },
-      },
-    ],
-    description: {
-      type: String,
+    seriesBooksUrls: {
+      type: [String],
       trim: true,
     },
     descriptionHTML: {
-      type: String,
-      trim: true,
-    },
-    descriptionHTMLShort: {
       type: String,
       trim: true,
     },
@@ -126,11 +98,6 @@ const bookSchema = new Schema(
   },
   options,
 );
-
-bookSchema.index({ genres: 1 });
-bookSchema.index({ authors: 1 });
-bookSchema.index({ title: 1 });
-bookSchema.index({ goodreadsUrls: 1 });
 
 const Book = model('Book', bookSchema, 'books');
 

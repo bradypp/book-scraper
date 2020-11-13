@@ -4,7 +4,10 @@ const linkSchema = new Schema({
   link: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+  },
+  blacklisted: {
+    type: Boolean
   },
   linksScrapedAt: {
     type: Date,
