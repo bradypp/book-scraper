@@ -15,11 +15,12 @@
     "scrape-links-low": "concurrently \"npm:link-scraper 1\"",
     "scrape-links": "concurrently \"npm:link-scraper 1\" \"npm:link-scraper 2\" \"npm:link-scraper 3\" \"npm:link-scraper 4\" \"npm:link-scraper 5\"",
     "scrape-links-high": "concurrently \"npm:link-scraper 1\" \"npm:link-scraper 2\" \"npm:link-scraper 3\" \"npm:link-scraper 4\" \"npm:link-scraper 5\" \"npm:link-scraper 6\" \"npm:link-scraper 7\" \"npm:link-scraper 8\" \"npm:link-scraper 9\" \"npm:link-scraper 10\" \"npm:link-scraper 11\" \"npm:link-scraper 12\" \"npm:link-scraper 13\" \"npm:link-scraper 14\"",
-    "scrape-books-low": "concurrently \"npm:book-scraper 1\" \"npm:book-scraper 2\" \"npm:book-scraper 3\" \"npm:book-scraper 4\" \"npm:book-scraper 5\" \"npm:book-scraper 6\" \"npm:book-scraper 7\" \"npm:book-scraper 8\" \"npm:book-scraper 9\" \"npm:book-scraper 10\" \"npm:book-scraper 11\" \"npm:book-scraper 12\" \"npm:book-scraper 13\" \"npm:book-scraper 14\"",
-    "scrape-books": "concurrently \"npm:book-scraper 1\" \"npm:book-scraper 2\" \"npm:book-scraper 3\" \"npm:book-scraper 4\" \"npm:book-scraper 5\" \"npm:book-scraper 6\" \"npm:book-scraper 7\" \"npm:book-scraper 8\" \"npm:book-scraper 9\" \"npm:book-scraper 10\" \"npm:book-scraper 11\" \"npm:book-scraper 12\" \"npm:book-scraper 13\" \"npm:book-scraper 14\" \"npm:book-scraper 15\" \"npm:book-scraper 16\"",
+    "scrape-books-low": "concurrently \"npm:book-scraper 1\" \"npm:book-scraper 2\" \"npm:book-scraper 3\" \"npm:book-scraper 4\" \"npm:book-scraper 5\" \"npm:book-scraper 6\" \"npm:book-scraper 7\" \"npm:book-scraper 8\" \"npm:book-scraper 9\" \"npm:book-scraper 10\"",
+    "scrape-books": "concurrently \"npm:book-scraper 1\" \"npm:book-scraper 2\" \"npm:book-scraper 3\" \"npm:book-scraper 4\" \"npm:book-scraper 5\" \"npm:book-scraper 6\" \"npm:book-scraper 7\" \"npm:book-scraper 8\" \"npm:book-scraper 9\" \"npm:book-scraper 10\" \"npm:book-scraper 11\" \"npm:book-scraper 12\" \"npm:book-scraper 13\" \"npm:book-scraper 14\" \"npm:book-scraper 15\"",
     "scrape-books-high": "concurrently \"npm:book-scraper 1\" \"npm:book-scraper 2\" \"npm:book-scraper 3\" \"npm:book-scraper 4\" \"npm:book-scraper 5\" \"npm:book-scraper 6\" \"npm:book-scraper 7\" \"npm:book-scraper 8\" \"npm:book-scraper 9\" \"npm:book-scraper 10\" \"npm:book-scraper 11\" \"npm:book-scraper 12\" \"npm:book-scraper 13\" \"npm:book-scraper 14\" \"npm:book-scraper 15\" \"npm:book-scraper 16\" \"npm:book-scraper 17\" \"npm:book-scraper 18\" \"npm:book-scraper 19\" \"npm:book-scraper 20\" \"npm:book-scraper 21\" \"npm:book-scraper 22\"",
     "scrape-everything-low": "concurrently \"npm:scrape-links-low\" \"npm:scrape-books-low\"",
     "scrape-everything": "concurrently \"npm:scrape-links-low\" \"npm:scrape-books\"",
+    "scrape-everything-high": "concurrently \"npm:scrape-links-low\" \"npm:scrape-books-high\"",
     "start-server": "mongod.exe",
     "start-shell": "mongo.exe"
   },
@@ -34,9 +35,11 @@
     "concurrently": "^5.3.0",
     "date-fns": "^2.16.1",
     "dotenv": "^8.2.0",
+    "languagedetect": "^2.0.0",
     "moment": "^2.29.1",
     "mongoose": "^5.10.2",
-    "puppeteer": "^5.2.1"
+    "puppeteer": "^5.2.1",
+    "simple-isbn": "^1.1.5"
   },
   "devDependencies": {
     "eslint": "^7.7.0",

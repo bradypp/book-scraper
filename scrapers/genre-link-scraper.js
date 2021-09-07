@@ -43,6 +43,17 @@ const favouriteGenres = [
   'lgbt',
 ];
 
+require('./link-scraper-base')(
+  {
+    link: {
+      $regex: `^(https://www.goodreads.com\/)(genres\/)(${favouriteGenres.join(
+        '|',
+      )})`,
+    },
+  },
+  'linksScrapedAt',
+  200,
+);
 // require('./link-scraper-base')(
 //   {
 //     link: {
@@ -54,6 +65,6 @@ const favouriteGenres = [
 //   'linksScrapedAt',
 //   200,
 // );
-// require('./link-scraper-base')({ link: { $regex: '^(https:\/\/www.goodreads.com\/)(genres)' } }, 'linksScrapedAt', 20);
-require('./link-scraper-base')({link: {$regex: '^(https:\/\/www.goodreads.com\/)(genres|shelf\/show)'}}, 'linksScrapedAt', 500);
+// require('./link-scraper-base')({ link: { $regex: '^(https:\/\/www.goodreads.com\/)(genres)' } }, 'linksScrapedAt', 100);
+// require('./link-scraper-base')({link: {$regex: '^(https:\/\/www.goodreads.com\/)(genres|shelf\/show)'}}, 'linksScrapedAt', 500);
 // require('./link-scraper-base')({link: {$regex: '^(https:\/\/www.goodreads.com\/)(list|genres|shelf\/show|shelf[?]|list\/show)'}}, 'linksScrapedAt', 5000);

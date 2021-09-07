@@ -59,6 +59,18 @@ const bookSchema = new Schema(
       type: [String],
       trim: true,
     },
+    bookEdition: {
+      type: String,
+      trim: true,
+    },
+    editionLanguage: {
+      type: String,
+      trim: true,
+    },
+    bookFormat: {
+      type: String,
+      trim: true,
+    },
     numberOfPages: {
       type: Number,
       trim: true,

@@ -1,2 +1,2 @@
-require('./link-scraper-base')({link: {$regex: '^(https:\/\/www.goodreads.com\/)(genres|shelf\/show|book\/popular_group_books|choiceawards|book\/popular_by_date|recommendations|award\/show)'}}, 'linksScrapedAt', 2000);
+require('./link-scraper-base')({link: {$regex: '^(https:\/\/www.goodreads.com\/)(shelf\/show|book\/popular_group_books|choiceawards|book\/popular_by_date|recommendations|award\/show)'}}, 'linksScrapedAt', 2000);
 // require('./link-scraper-base')({link: {$regex: '^(https:\/\/www.goodreads.com\/)(genres|shelf\/show|author\/show|list|book\/popular_group_books|choiceawards|book\/popular_by_date|recommendations|award\/show)'}}, 'linksScrapedAt', 2000);

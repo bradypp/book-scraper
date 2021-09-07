@@ -57,6 +57,10 @@ module.exports = {
             selector: '[itemprop="numberOfPages"]',
         },
         {
+            name: 'editionLanguage',
+            selector: '[itemprop="inLanguage"]',
+        },
+        {
             name: 'bookEdition',
             selector: '[itemprop="bookEdition"]',
         },
