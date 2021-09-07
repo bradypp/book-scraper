@@ -35,7 +35,11 @@ const linkScraper = async (filter, sort = '-createdAt', limit = 10000) => {
         const skip = (pageNumber - 1) * limit;
 
         // Scrape the newest links saved for more
-        const dbLinks = await Link.find(filter).sort(sort).select('link blacklisted').skip(skip).limit(limit);
+        const dbLinks = await Link.find(filter)
+          .sort(sort)
+          .select('link blacklisted')
+          .skip(skip)
+          .limit(limit);
         let startingLinks = dbLinks.map(el => el.link);
         const scrapedLinks = [];
 
@@ -60,8 +64,13 @@ const linkScraper = async (filter, sort = '-createdAt', limit = 10000) => {
                     if (!el || !el.href) {
                       return false;
                     }
-                    return new RegExp(/^(https:\/\/www.goodreads.com\/|\/)(list\/show)[\/?#]/).test(
-                      el.href.toLowerCase(),
+                    return (
+                      new RegExp(/^(https:\/\/www.goodreads.com\/|\/)(list\/show)[\/?#]/).test(
+                        el.href.toLowerCase(),
+                      ) &&
+                      !new RegExp(
+                        /^(https:\/\/www.goodreads.com).+(https:\/\/|http:\/\/|add_to_favourite_genres|format=json|original_shelf|shelf\/users|book\/show.+___\d)/,
+                      ).test(el.href.toLowerCase())
                     );
                   })
                   .map(el => {

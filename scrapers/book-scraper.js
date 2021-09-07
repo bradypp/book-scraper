@@ -1,5 +1,6 @@
 const puppeteer = require('puppeteer');
 const moment = require('moment');
+const LanguageDetect = require('languagedetect');
 
 require('../server')();
 
@@ -72,8 +73,13 @@ const bookScraper = async () => {
                   if (!el || !el.href) {
                     return false;
                   }
-                  return new RegExp(/^(https:\/\/www.goodreads.com\/|\/)(list\/show)[\/?#]/).test(
-                    el.href.toLowerCase(),
+                  return (
+                    new RegExp(/^(https:\/\/www.goodreads.com\/|\/)(list\/show)[\/?#]/).test(
+                      el.href.toLowerCase(),
+                    ) &&
+                    !new RegExp(
+                      /^(https:\/\/www.goodreads.com).+(https:\/\/|http:\/\/|add_to_favourite_genres|format=json|original_shelf|shelf\/users|book\/show.+___\d)/,
+                    ).test(el.href.toLowerCase())
                   );
                 })
                 .map(el => {
@@ -189,6 +195,9 @@ const bookScraper = async () => {
                   isbn,
                   numberOfPages,
                   bookEdition: bookElements.bookEdition ? bookElements.bookEdition.innerText : null,
+                  editionLanguage: bookElements.editionLanguage
+                    ? bookElements.editionLanguage.innerText
+                    : null,
                   bookFormat: bookElements.bookFormat ? bookElements.bookFormat.innerText : null,
                   relatedBooksUrls:
                     bookElements.relatedBooks && bookElements.relatedBooks.length !== 0
@@ -197,9 +206,14 @@ const bookScraper = async () => {
                             if (!el || !el.href) {
                               return false;
                             }
-                            return new RegExp(
-                              /^(https:\/\/www.goodreads.com\/|\/)(book\/show)[\/?#]/,
-                            ).test(el.href.toLowerCase());
+                            return (
+                              new RegExp(
+                                /^(https:\/\/www.goodreads.com\/|\/)(book\/show)[\/?#]/,
+                              ).test(el.href.toLowerCase()) &&
+                              !new RegExp(
+                                /^(https:\/\/www.goodreads.com).+(https:\/\/|http:\/\/|add_to_favourite_genres|format=json|original_shelf|shelf\/users|book\/show.+___\d)/,
+                              ).test(el.href.toLowerCase())
+                            );
                           })
                           .map(el => {
                             let url = el.href.toLowerCase().split('#')[0];
@@ -245,8 +259,15 @@ const bookScraper = async () => {
               firstPublishedString,
               relatedBooksUrls,
               relatedBooksLink,
+              descriptionHTML,
+              editionLanguage,
               ...bookData
             } = scrapedData;
+
+            if (/goodreads.com/.test(descriptionHTML)) {
+              await Link.updateOne({ link: bookUrl }, { dataScrapedAt: Date.now() });
+              continue;
+            }
 
             // To get all related books (get relatedBooksLink)
             let relatedBooks = [];
@@ -268,7 +289,11 @@ const bookScraper = async () => {
                             return (
                               new RegExp(
                                 /^(https:\/\/www.goodreads.com\/|\/)(book\/show)[\/?#]/,
-                              ).test(el.href.toLowerCase()) && !el.href.includes(bookUrl)
+                              ).test(el.href.toLowerCase()) &&
+                              !el.href.includes(bookUrl) &&
+                              !new RegExp(
+                                /^(https:\/\/www.goodreads.com).+(https:\/\/|http:\/\/|add_to_favourite_genres|format=json|original_shelf|shelf\/users|book\/show.+___\d)/,
+                              ).test(el.href.toLowerCase())
                             );
                           })
                           .map(el => {
@@ -292,8 +317,6 @@ const bookScraper = async () => {
                 console.error(error);
               }
             }
-
-            // TODO Also scrape tag links
             let tags = [];
             if (tagsLink && typeof tagsLink === 'string') {
               try {
@@ -307,7 +330,7 @@ const bookScraper = async () => {
                         el.href.includes('genres') &&
                         el.innerText &&
                         el.innerText.search(
-                          /book|read|own|have|star|my|wishlist|wish-list|to-buy|\d{4}|tbr/,
+                          /book|read|own|have|star|my|wishlist|wish-list|amazon|audio-wanted|format|default|humble-bundle|not-interested|faves|returned|^favourite$|children-s|<\/?[^>]+(>|$)|dnf|to-buy|\d{4}|tbr/,
                         ) === -1,
                     )
                     .map(el => {
@@ -316,7 +339,7 @@ const bookScraper = async () => {
                       }
                       return null;
                     })
-                    .slice(0, 25);
+                    .slice(0, 15);
                 });
               } catch (error) {
                 console.error(error);
@@ -478,6 +501,24 @@ const bookScraper = async () => {
               }
             }
 
+            const languageDetector = new LanguageDetect();
+            let calculatedBookLanguage = editionLanguage;
+            if (!calculatedBookLanguage && descriptionHTML) {
+              const bookDescriptionLanguageArr = languageDetector.detect(
+                descriptionHTML.replace(/<\/?[^>]+(>|$)/g, ''),
+                1,
+              );
+              const bookLanguage =
+                bookDescriptionLanguageArr.length > 0 && bookDescriptionLanguageArr[0].length > 0
+                  ? bookDescriptionLanguageArr[0][0]
+                  : null;
+              calculatedBookLanguage =
+                bookLanguage && bookLanguage !== 'pidgin'
+                  ? bookLanguage.toLowerCase().charAt(0).toUpperCase() +
+                    bookLanguage.toLowerCase().slice(1)
+                  : null;
+            }
+
             // let bookDoc = await Book.findOne({ goodreadsUrls: bookUrl });
             if (!bookDoc && bookData.isbn) {
               bookDoc = await Book.findOne({ isbn: bookData.isbn });
@@ -490,6 +531,8 @@ const bookScraper = async () => {
               try {
                 const doc = await Book.create({
                   ...bookData,
+                  descriptionHTML,
+                  editionLanguage: calculatedBookLanguage,
                   relatedBooksUrls: relatedBooks,
                   goodreadsUrls: [bookUrl],
                   latestPublished: latestPublished !== 'Invalid date' ? latestPublished : null,
@@ -510,7 +553,7 @@ const bookScraper = async () => {
                   updatedAt: Date.now(),
                 });
                 newBooksCount++;
-                console.log(doc);
+                // console.log(doc);
               } catch (error) {
                 console.error(error);
               }
@@ -540,16 +583,14 @@ const bookScraper = async () => {
                 bookDoc.ratingCount = bookData.ratingCount || bookDoc.ratingCount;
                 bookDoc.reviewCount = bookData.reviewCount || bookDoc.reviewCount;
                 bookDoc.genres = [...new Set([...bookData.genres, ...bookDoc.genres])];
-                bookDoc.tags = [...new Set([...tags, ...bookDoc.tags])];
+                bookDoc.tags = [...new Set([...tags, ...bookDoc.tags])].slice(0, 15);
                 bookDoc.series = series || bookDoc.series;
                 bookDoc.seriesNumber = seriesNumber || bookDoc.seriesNumber;
                 bookDoc.seriesBooksUrls =
                   seriesBooksUrls && seriesBooksUrls.length !== 0
                     ? seriesBooksUrls
                     : bookDoc.seriesBooksUrls;
-                bookDoc.description = bookData.description || bookDoc.description;
-                bookDoc.descriptionHTML = bookData.description || bookDoc.descriptionHTML;
-                bookDoc.descriptionHTMLShort = bookData.description || bookDoc.descriptionHTMLShort;
+                bookDoc.descriptionHTML = descriptionHTML || bookDoc.descriptionHTML;
                 bookDoc.goodreadsId = bookData.goodreadsId || bookDoc.goodreadsId;
                 bookDoc.isbn = bookData.isbn || bookDoc.isbn;
                 bookDoc.numberOfPages = bookData.numberOfPages || bookDoc.numberOfPages;
@@ -558,6 +599,7 @@ const bookScraper = async () => {
                     ? bookData.authors
                     : bookDoc.authors;
                 bookDoc.bookEdition = bookData.bookEdition || bookDoc.bookEdition;
+                bookDoc.editionLanguage = calculatedBookLanguage || bookDoc.editionLanguage;
                 bookDoc.bookFormat = bookData.bookFormat || bookDoc.bookFormat;
                 bookDoc.updatedAt = Date.now();
                 bookDoc.save();

@@ -29,7 +29,7 @@ exports.scrapeHandler = links => {
       return new RegExp(
         /^(https:\/\/www.goodreads.com\/|\/)(book\/show|book\/popular_by_date|list\/show|genre|genres|recommendations|series|author\/show|choiceawards|list\/show_tag|shelf\/show|award\/show|genres\/new_releases|genres\/most_read|list\/recently_active_lists|list\/popular_lists|book\/popular_group_books|list\/tag|list\/best_of_month|list\/best_of_year|list\/best_of_century|list\/best_of_decade|list\/best_by_date)/,
       ).test(el.href.toLowerCase()) && !new RegExp(
-        /^(https:\/\/www.goodreads.com).+(https:\/\/|http:\/\/|add_to_favourite_genres|format=json|original_shelf|shelf\/users)/,
+        /^(https:\/\/www.goodreads.com).+(https:\/\/|http:\/\/|add_to_favourite_genres|format=json|original_shelf|shelf\/users|book\/show.+___\d)/,
       ).test(el.href.toLowerCase());
     })
     .map(el => {

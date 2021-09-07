@@ -17,7 +17,7 @@ const removeDuplicateGoodreadsIds = async () => {
             return b.goodreadsUrl.length - a.goodreadsUrl.length;
           });
           if (sortedDocs.length > 1) {
-            const goodreadsUrls = [...sortedDocs.map(el => el.goodreadsUrls)];
+            const goodreadsUrls = [...new Set(...sortedDocs.map(el => el.goodreadsUrls))];
             // TODO Test before you enable this
             // sortedDocs.forEach(async (el, i, arr) => {
             //   if (i !== arr.length - 1) {
@@ -44,4 +44,4 @@ const removeDuplicateGoodreadsIds = async () => {
   }
 };
 
-removeDuplicateIsbns();
+removeDuplicateGoodreadsIds();
